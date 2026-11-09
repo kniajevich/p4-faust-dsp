@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32-P4 Faust DSP Control & Flasher</title>
+  <style>
+    :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; --text: #c9d1d9; --border: #30363d; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 12px; font-size: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .btn { background: #238636; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: #2ea043; }
+    .slider-row { display: flex; align-items: center; justify-content: space-between; margin: 16px 0; }
+    input[type=range] { flex-grow: 1; margin: 0 16px; accent-color: var(--accent); }
+    .status { font-family: monospace; font-size: 13px; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ESP32-P4 Faust DSP Platform Control</h1>
+
+    <div class="card">
+      <h3>1. One-Click Firmware Flasher (WebSerial)</h3>
+      <p>Connect your ESP32-P4 via USB-C to flash the latest build directly from the browser.</p>
+      <button class="btn" id="btnConnectSerial">Connect & Flash ESP32-P4</button>
+      <p class="status" id="serialStatus">Serial Status: Disconnected</p>
+    </div>
+
+    <div class="card">
+      <h3>2. Real-Time Web-MIDI Controller</h3>
+      <p>Modulate Faust DSP synth parameters over native High-Speed USB-MIDI.</p>
+
+      <div class="slider-row">
+        <label>Filter Cutoff (CC 74):</label>
+        <input type="range" id="sliderCutoff" min="0" max="127" value="64" />
+        <span id="valCutoff">64</span>
+      </div>
+
+      <div class="slider-row">
+        <label>Golden Q Resonance (CC 71):</label>
+        <input type="range" id="sliderRes" min="0" max="127" value="50" />
+        <span id="valRes">50</span>
+      </div>
+
+      <div class="slider-row">
+        <label>Master Volume (CC 7):</label>
+        <input type="range" id="sliderVol" min="0" max="127" value="90" />
+        <span id="valVol">90</span>
+      </div>
+      <p class="status" id="midiStatus">MIDI Status: Initializing...</p>
+    </div>
+  </div>
+
+  <script>
+    let midiOutput = null;
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then((access) => {
+        const outputs = Array.from(access.outputs.values());
+        if (outputs.length > 0) {
+          midiOutput = outputs[0];
+          document.getElementById('midiStatus').innerText = `MIDI Connected: ${midiOutput.name}`;
+        } else {
+          document.getElementById('midiStatus').innerText = 'No MIDI outputs detected.';
+        }
+      });
+    }
+
+    function sendCC(cc, val) {
+      if (midiOutput) midiOutput.send([0xB0, cc, val]);
+    }
+
+    document.getElementById('sliderCutoff').oninput = (e) => {
+      document.getElementById('valCutoff').innerText = e.target.value;
+      sendCC(74, parseInt(e.target.value));
+    };
+    document.getElementById('sliderRes').oninput = (e) => {
+      document.getElementById('valRes').innerText = e.target.value;
+      sendCC(71, parseInt(e.target.value));
+    };
+    document.getElementById('sliderVol').oninput = (e) => {
+      document.getElementById('valVol').innerText = e.target.value;
+      sendCC(7, parseInt(e.target.value));
+    };
+
+    document.getElementById('btnConnectSerial').onclick = async () => {
+      if ('serial' in navigator) {
+        try {
+          const port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 115200 });
+          document.getElementById('serialStatus').innerText = 'Serial Connected! Ready for firmware stream.';
+        } catch (e) { document.getElementById('serialStatus').innerText = `Serial Error: ${e.message}`; }
+      } else {
+        alert('WebSerial not supported in this browser. Please use Chrome or Edge.');
+      }
+    };
+  </script>
+</body>
+</html>

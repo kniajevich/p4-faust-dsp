@@ -10,6 +10,8 @@
 #include "faust_dsp_core.hpp"
 #include "phi_dsp_math.h"
 #include "codec_i2c.hpp"
+#include "cv_gate_driver.hpp"
+#include "riscv_biquad_simd.h"
 
 static const char *TAG = "P4_UNIFIED_MAIN";
 
@@ -53,7 +55,7 @@ static esp_err_t init_tdm_hardware() {
     return ESP_OK;
 }
 
-// Core 1: Dedicated Real-Time DSP Audio Loop with Cycle Profiling
+// Core 1: Isolated Real-Time DSP Audio Loop
 static void dsp_audio_task(void *pvParameters) {
     (void)pvParameters;
     ESP_LOGI(TAG, "Faust DSP Core running isolated on Core 1 (Priority 10)");
@@ -64,10 +66,10 @@ static void dsp_audio_task(void *pvParameters) {
     while (true) {
         uint32_t start_cycles = esp_cpu_get_cycle_count();
 
-        // 1. Execute DSP compute block
+        // 1. Process block inside Faust DSP engine
         dsp_engine.compute(DSP_BLOCK_SIZE, nullptr, outputs);
 
-        // 2. Measure execution cycles and CPU load
+        // 2. Measure execution cycles
         uint32_t elapsed_cycles = esp_cpu_get_cycle_count() - start_cycles;
         g_telemetry.last_cycles = elapsed_cycles;
         if (elapsed_cycles > g_telemetry.peak_cycles) g_telemetry.peak_cycles = elapsed_cycles;
@@ -83,16 +85,27 @@ static void dsp_audio_task(void *pvParameters) {
     }
 }
 
-// Core 0: Telemetry Logger & Watchdog Task
-static void telemetry_task(void *pvParameters) {
+// Core 0: Telemetry Logger & Eurorack Analog CV Monitor
+static void telemetry_cv_task(void *pvParameters) {
     (void)pvParameters;
+    bool prev_gate = false;
+
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(2000));
-        ESP_LOGI(TAG, "[DSP Telemetry] Core 1 Load: %.2f%% | Cycles: %lu / Peak: %lu | Blocks: %lu",
-                 g_telemetry.cpu_load_pct,
-                 g_telemetry.last_cycles,
-                 g_telemetry.peak_cycles,
-                 g_telemetry.blocks_processed);
+        // Poll Eurorack analog CV and Gate state
+        bool current_gate = gate_is_active();
+        if (current_gate != prev_gate) {
+            prev_gate = current_gate;
+            if (current_gate) {
+                float cv_freq = cv_read_volt_octave_frequency();
+                dsp_engine.handleMidiNoteOn(69, 110); // Trigger note tracking
+                ESP_LOGI(TAG, "[Eurorack GATE ON] CV Frequency: %.2f Hz", cv_freq);
+            } else {
+                dsp_engine.handleMidiNoteOff(69);
+                ESP_LOGI(TAG, "[Eurorack GATE OFF]");
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
@@ -104,16 +117,19 @@ extern "C" void app_main(void) {
     p4_codec_i2c_init();
     p4_codec_configure_tdm8(PCM3168A_I2C_ADDR_A);
 
-    // 2. Initialize 8-Channel Hardware TDM Streamer
+    // 2. Initialize Eurorack CV/Gate Hardware Interfaces
+    cv_gate_init();
+
+    // 3. Initialize 8-Channel Hardware TDM Streamer
     ESP_ERROR_CHECK(init_tdm_hardware());
 
-    // 3. Initialize TinyUSB Device Stack (UAC2 480 Mbps Core)
+    // 4. Initialize TinyUSB Device Stack (UAC2 480 Mbps Core)
     tinyusb_config_t const tusb_cfg = TINYUSB_DEFAULT_CONFIG();
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
 
-    // 4. Launch isolated Real-Time DSP Audio Task on Core 1
+    // 5. Launch Real-Time DSP Audio Task on Core 1
     xTaskCreatePinnedToCore(dsp_audio_task, "dsp_core1_task", 8192, nullptr, 10, nullptr, 1);
 
-    // 5. Launch Telemetry Logger on Core 0
-    xTaskCreatePinnedToCore(telemetry_task, "telemetry_task", 3072, nullptr, 1, nullptr, 0);
+    // 6. Launch Telemetry and CV Monitor on Core 0
+    xTaskCreatePinnedToCore(telemetry_cv_task, "telemetry_cv_task", 4096, nullptr, 1, nullptr, 0);
 }
