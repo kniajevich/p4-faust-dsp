@@ -24,9 +24,14 @@ static esp_err_t init_tdm_hardware() {
     chan_cfg.dma_frame_num = 128;
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, nullptr));
 
+    const auto slot_mask = static_cast<i2s_tdm_slot_mask_t>(
+        I2S_TDM_SLOT0 | I2S_TDM_SLOT1 | I2S_TDM_SLOT2 | I2S_TDM_SLOT3 |
+        I2S_TDM_SLOT4 | I2S_TDM_SLOT5 | I2S_TDM_SLOT6 | I2S_TDM_SLOT7
+    );
+
     i2s_tdm_config_t tdm_cfg = {
         .clk_cfg = I2S_TDM_CLK_DEFAULT_CONFIG(DSP_SAMPLE_RATE),
-        .slot_cfg = I2S_TDM_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO, I2S_TDM_SLOT0 | I2S_TDM_SLOT1 | I2S_TDM_SLOT2 | I2S_TDM_SLOT3 | I2S_TDM_SLOT4 | I2S_TDM_SLOT5 | I2S_TDM_SLOT6 | I2S_TDM_SLOT7),
+        .slot_cfg = I2S_TDM_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO, slot_mask),
         .gpio_cfg = {
             .mclk = GPIO_NUM_NC,
             .bclk = GPIO_NUM_12,
