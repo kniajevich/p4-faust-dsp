@@ -4,12 +4,15 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "driver/i2s_tdm.h"
+#include "tinyusb.h"
+#include "tinyusb_default_config.h"
+#include "tusb.h"
 #include "faust_dsp_core.hpp"
 #include "phi_dsp_math.h"
 
-static const char *TAG = "P4_FAUST_DSP";
+static const char *TAG = "P4_FAUST_MAIN";
 
-// 32-byte aligned DSP scratchbuffers for RISC-V SIMD block vectorization
+// 32-byte SIMD vector-aligned audio buffers
 alignas(32) static float dsp_out_left[DSP_BLOCK_SIZE];
 alignas(32) static float dsp_out_right[DSP_BLOCK_SIZE];
 alignas(32) static uint32_t tdm_tx_buffer[DSP_BLOCK_SIZE * 8];
@@ -18,7 +21,7 @@ static i2s_chan_handle_t tx_chan = nullptr;
 static FaustDspCore dsp_engine;
 
 static esp_err_t init_tdm_hardware() {
-    ESP_LOGI(TAG, "Initializing 8-Slot TDM Hardware for Faust Runtime");
+    ESP_LOGI(TAG, "Initializing 8-Slot TDM Hardware for Faust + UAC2 Pipeline");
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     chan_cfg.dma_desc_num = 8;
     chan_cfg.dma_frame_num = 128;
@@ -50,42 +53,37 @@ static esp_err_t init_tdm_hardware() {
 
 static void dsp_audio_task(void *pvParameters) {
     (void)pvParameters;
-    ESP_LOGI(TAG, "Audio DSP Core Task running on High-Speed RISC-V Engine");
+    ESP_LOGI(TAG, "Faust Real-Time DSP Engine locked on Core 1");
 
     dsp_engine.init(DSP_SAMPLE_RATE);
     float* outputs[2] = { dsp_out_left, dsp_out_right };
 
     while (true) {
-        // 1. Compute DSP block
+        // 1. Process block inside Faust DSP engine
         dsp_engine.compute(DSP_BLOCK_SIZE, nullptr, outputs);
 
-        // 2. Interleave stereo float into 8-channel 32-bit TDM slots
-        for (size_t i = 0; i < DSP_BLOCK_SIZE; ++i) {
-            int32_t val_l = static_cast<int32_t>(dsp_out_left[i] * 2147483647.0f);
-            int32_t val_r = static_cast<int32_t>(dsp_out_right[i] * 2147483647.0f);
+        // 2. Vectorized interleave into 8-channel TDM slot buffer using SIMD helpers
+        phi_simd_interleave_to_q31(dsp_out_left, dsp_out_right, tdm_tx_buffer, DSP_BLOCK_SIZE);
 
-            tdm_tx_buffer[i * 8 + 0] = static_cast<uint32_t>(val_l);
-            tdm_tx_buffer[i * 8 + 1] = static_cast<uint32_t>(val_r);
-            tdm_tx_buffer[i * 8 + 2] = 0;
-            tdm_tx_buffer[i * 8 + 3] = 0;
-            tdm_tx_buffer[i * 8 + 4] = 0;
-            tdm_tx_buffer[i * 8 + 5] = 0;
-            tdm_tx_buffer[i * 8 + 6] = 0;
-            tdm_tx_buffer[i * 8 + 7] = 0;
-        }
-
-        // 3. Direct DMA push
+        // 3. Push to hardware DMA
         size_t bytes_written = 0;
         i2s_channel_write(tx_chan, tdm_tx_buffer, sizeof(tdm_tx_buffer), &bytes_written, portMAX_DELAY);
     }
 }
 
 extern "C" void app_main(void) {
-    ESP_LOGI(TAG, "=== Initializing ESP32-P4 Faust DSP Runtime Engine ===");
-    ESP_LOGI(TAG, "Golden Ratio Damping Active (Q = %.4f)", PHI_OPTIMAL_Q);
+    ESP_LOGI(TAG, "=== Starting ESP32-P4 Faust DSP + UAC2 Audio Hybrid Platform ===");
+    ESP_LOGI(TAG, "Golden Ratio Damping Active (Q = %.4f, Watermarks = %.1f%% / %.1f%%)",
+             PHI_OPTIMAL_Q, PHI_INV_SQ * 100.0f, PHI_INV * 100.0f);
 
+    // 1. Initialize High-Speed TDM Hardware
     ESP_ERROR_CHECK(init_tdm_hardware());
 
-    // Pin DSP engine to Core 1 for dedicated real-time processing
-    xTaskCreatePinnedToCore(dsp_audio_task, "faust_dsp_task", 8192, nullptr, 10, nullptr, 1);
+    // 2. Initialize TinyUSB Device Stack (UAC2 480 Mbps Core)
+    tinyusb_config_t const tusb_cfg = TINYUSB_DEFAULT_CONFIG();
+    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
+    ESP_LOGI(TAG, "TinyUSB UAC2 High-Speed Subsystem online");
+
+    // 3. Pin Faust DSP real-time calculation to dedicated Core 1 (Priority 10)
+    xTaskCreatePinnedToCore(dsp_audio_task, "faust_dsp_core1", 8192, nullptr, 10, nullptr, 1);
 }
