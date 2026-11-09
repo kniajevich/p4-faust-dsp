@@ -3,9 +3,13 @@ name: ESP32-P4 Faust DSP CI
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -24,3 +28,22 @@ jobs:
           . /opt/esp/idf/export.sh
           idf.py set-target esp32p4
           idf.py build
+
+      - name: Archive Firmware Binaries
+        shell: bash
+        run: |
+          tar -czf esp32p4-faust-dsp-binaries.tar.gz -C build bootloader/bootloader.bin partition_table/partition-table.bin p4-faust-dsp.bin flasher_args.json
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-faust-dsp-firmware
+          path: esp32p4-faust-dsp-binaries.tar.gz
+
+      - name: Attach Binaries to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: esp32p4-faust-dsp-binaries.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

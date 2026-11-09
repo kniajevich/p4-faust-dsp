@@ -6,7 +6,7 @@
 ![Target: ESP32-P4](https://img.shields.io/badge/Target-ESP32--P4-red.svg)
 ![Architecture: RISC--V](https://img.shields.io/badge/Architecture-RISC--V%20SIMD-orange.svg)
 
-An all-in-one embedded audio processing platform combining **Faust real-time DSP**, **USB Audio Class 2.0 (480 Mbps High-Speed)**, **MIDI CC/Pitch modulation**, **I2C Multichannel Codec control**, and **8-channel TDM hardware output**, designed exclusively for the dual-core **ESP32-P4 RISC-V SoC** (400 MHz).
+An all-in-one embedded audio processing platform combining **Faust & Pure Data real-time DSP**, **USB Audio Class 2.0 (480 Mbps High-Speed)**, **MIDI CC/Pitch modulation**, **I2C Multichannel Codec control**, and **8-channel TDM hardware output**, designed exclusively for the dual-core **ESP32-P4 RISC-V SoC** (400 MHz).
 
 ---
 
@@ -28,7 +28,7 @@ USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
       |                                             ^               |
       |  [Core 1 - Real-Time Audio Engine]          |               |
       |   +-----------------------------------------v------------+  |
-      |   | Faust C++ DSP Core (32-byte SIMD vector alignment)   |  |
+      |   | Faust / Pure Data C++ DSP Core (32-byte SIMD align)  |  |
       |   | Dynamic MIDI CC & Pitch Modulation Interface         |  |
       |   +------------------------------------------------------+  |
       |                                 |                           |
@@ -43,17 +43,9 @@ USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
 
 ---
 
-## Hardware Pinout (ESP32-P4)
+## Hardware Documentation & Bring-Up
 
-| Signal | ESP32-P4 GPIO | Description |
-| :--- | :--- | :--- |
-| **TDM BCLK** | GPIO 12 | Bit Clock (Bit Rate = 48000 * 8 * 32) |
-| **TDM WS / FS** | GPIO 13 | Frame Sync (Word Select) |
-| **TDM DOUT** | GPIO 11 | Serial Audio Data Output (8 Time Slots to DAC) |
-| **TDM DIN** | GPIO 10 | Serial Audio Data Input (8 Time Slots from ADC) |
-| **I2C SDA** | GPIO 7 | Multichannel Codec Control Data (PCM3168A / CS42448) |
-| **I2C SCL** | GPIO 8 | Multichannel Codec Control Clock |
-| **USB D+ / D-** | On-chip HS PHY | Direct connection to USB-C port (480 Mbps) |
+See [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) for full schematic wiring, power isolation guidelines, and flashing via `esptool.py`.
 
 ---
 
@@ -69,15 +61,17 @@ USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
 
 ---
 
-## Included Faust DSP Presets
+## Compiling Faust & Pure Data Algorithms
 
-* **`dsp/phi_synth.dsp`**: Polyphonic dual-oscillator synthesizer with $\\phi$-tuned overtones and anti-resonant damping filter.
-* **`dsp/fibonacci_fdn.dsp`**: 8-channel Feedback Delay Network reverb based on prime Fibonacci sample taps (55 to 1597 samples).
-
-To compile any `.dsp` algorithm directly into the firmware:
-
+### Faust (.dsp)
 ```bash
 python3 tools/compile_faust.py dsp/phi_synth.dsp
+```
+
+### Pure Data (.pd via Heavy)
+See [pd/README.md](pd/README.md):
+```bash
+python3 tools/compile_pd.py pd/phi_drone.pd
 ```
 
 ---
