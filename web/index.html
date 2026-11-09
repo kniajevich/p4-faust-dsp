@@ -40,9 +40,10 @@
     #xyCanvas { width: 100%; height: 100%; display: block; }
     .pad-overlay { position: absolute; pointer-events: none; bottom: 8px; left: 8px; font-family: monospace; font-size: 11px; color: var(--text-muted); }
     
-    /* Visualizer */
-    .visualizer-container { width: 100%; height: 120px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; }
+    /* Real Visualizer */
+    .visualizer-container { width: 100%; height: 120px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; position: relative; }
     #scopeCanvas { width: 100%; height: 100%; display: block; }
+    .audio-notice { position: absolute; top: 8px; right: 8px; font-size: 11px; font-family: monospace; color: #e3b341; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
 
     /* Sliders */
     .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-family: monospace; }
@@ -71,6 +72,7 @@
     <header>
       <h1>ESP32-P4 Faust Studio <span class="badge">v0.6.0</span></h1>
       <div class="status-bar">
+        <div><span id="dotAudio" class="status-dot active"></span>Web Audio</div>
         <div><span id="dotMidi" class="status-dot"></span>MIDI</div>
         <div><span id="dotSerial" class="status-dot"></span>Serial</div>
       </div>
@@ -86,6 +88,7 @@
       </div>
       <div class="visualizer-container">
         <canvas id="scopeCanvas"></canvas>
+        <div class="audio-notice" id="audioNotice">Tap key to start audio</div>
       </div>
     </div>
 
@@ -132,7 +135,104 @@
   </div>
 
   <script>
-    // MIDI State & Output Management
+    // -------------------------------------------------------------------------
+    // 1. Built-in Real-Time Web Audio DSP Synth Engine
+    // -------------------------------------------------------------------------
+    const PHI = 1.61803398875;
+    const PHI_INV = 0.61803398875;
+    let audioCtx = null;
+    let masterGain = null;
+    let masterFilter = null;
+    let analyser = null;
+    const activeVoices = new Map();
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+
+        masterFilter = audioCtx.createBiquadFilter();
+        masterFilter.type = 'lowpass';
+        masterFilter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        masterFilter.Q.setValueAtTime(1.0 / Math.sqrt(PHI), audioCtx.currentTime); // Phi non-modal damping
+
+        masterFilter.connect(masterGain);
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        document.getElementById('audioNotice').style.display = 'none';
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playLocalNoteOn(note, velocity = 100) {
+      ensureAudioContext();
+      if (activeVoices.has(note)) {
+        stopLocalNoteOff(note);
+      }
+
+      const now = audioCtx.currentTime;
+      const freq = 440.0 * Math.pow(2.0, (note - 69) / 12.0);
+      const gainVal = (velocity / 127.0) * 0.25;
+
+      // Dual Harmonic Voice (Osc1: Saw, Osc2: Sine at Phi interval)
+      const osc1 = audioCtx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(freq, now);
+
+      const osc2 = audioCtx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq * PHI_INV, now);
+
+      const voiceGain = audioCtx.createGain();
+      // Fast attack & decay
+      voiceGain.gain.setValueAtTime(0.001, now);
+      voiceGain.gain.exponentialRampToValueAtTime(gainVal, now + 0.015);
+
+      osc1.connect(voiceGain);
+      osc2.connect(voiceGain);
+      voiceGain.connect(masterFilter);
+
+      osc1.start(now);
+      osc2.start(now);
+
+      activeVoices.set(note, { osc1, osc2, voiceGain });
+    }
+
+    function stopLocalNoteOff(note) {
+      if (!audioCtx || !activeVoices.has(note)) return;
+      const { osc1, osc2, voiceGain } = activeVoices.get(note);
+      const now = audioCtx.currentTime;
+
+      // Smooth Golden Ratio release ramp
+      voiceGain.gain.cancelScheduledValues(now);
+      voiceGain.gain.setValueAtTime(voiceGain.gain.value, now);
+      voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      setTimeout(() => {
+        try {
+          osc1.stop();
+          osc2.stop();
+          osc1.disconnect();
+          osc2.disconnect();
+          voiceGain.disconnect();
+        } catch(e) {}
+      }, 200);
+
+      activeVoices.delete(note);
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Hardware MIDI & Parameters Management
+    // -------------------------------------------------------------------------
     let midiOut = null;
     const dotMidi = document.getElementById('dotMidi');
     const dotSerial = document.getElementById('dotSerial');
@@ -150,7 +250,7 @@
           if (outputs.length > 0) {
             midiOut = outputs[0];
             dotMidi.classList.add('active');
-            log(`Connected MIDI: ${midiOut.name}`);
+            log(`Hardware MIDI Linked: ${midiOut.name}`);
           } else {
             midiOut = null;
             dotMidi.classList.remove('active');
@@ -158,19 +258,38 @@
         }
         updateOutputs();
         access.onstatechange = updateOutputs;
-      }).catch(() => log('MIDI access denied or unavailable.'));
+      }).catch(() => log('Web-MIDI not linked. Using built-in Web Audio engine.'));
     }
 
     function sendMIDI(bytes) {
-      if (midiOut) midiOut.send(bytes);
-      triggerScopeFlash();
+      if (midiOut) {
+        try { midiOut.send(bytes); } catch(e) {}
+      }
     }
 
     function onSliderChange(cc, val) {
       sendMIDI([0xB0, cc, parseInt(val)]);
-      if (cc === 74) document.getElementById('valCutoff').innerText = val;
-      if (cc === 71) document.getElementById('valRes').innerText = val;
-      if (cc === 7) document.getElementById('valVol').innerText = val;
+      if (cc === 74) {
+        document.getElementById('valCutoff').innerText = val;
+        if (masterFilter && audioCtx) {
+          const norm = val / 127.0;
+          const cutoffHz = 80 * Math.pow(14000 / 80, norm);
+          masterFilter.frequency.setTargetAtTime(cutoffHz, audioCtx.currentTime, 0.02);
+        }
+      }
+      if (cc === 71) {
+        document.getElementById('valRes').innerText = val;
+        if (masterFilter && audioCtx) {
+          const q = 0.5 + (val / 127.0) * 12.0;
+          masterFilter.Q.setTargetAtTime(q, audioCtx.currentTime, 0.02);
+        }
+      }
+      if (cc === 7) {
+        document.getElementById('valVol').innerText = val;
+        if (masterGain && audioCtx) {
+          masterGain.gain.setTargetAtTime((val / 127.0) * 0.9, audioCtx.currentTime, 0.02);
+        }
+      }
     }
 
     function selectPreset(prog, name) {
@@ -179,7 +298,9 @@
       log(`Loaded DSP Preset: ${name}`);
     }
 
-    // XY Pad Controller
+    // -------------------------------------------------------------------------
+    // 3. Kaoss Touch XY Pad Controller
+    // -------------------------------------------------------------------------
     const xyPad = document.getElementById('xyPad');
     const xyCanvas = document.getElementById('xyCanvas');
     const xyCoords = document.getElementById('xyCoords');
@@ -195,7 +316,6 @@
 
     function drawXYPad() {
       xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
-      // Grid Lines
       xyCtx.strokeStyle = '#1a2333';
       xyCtx.lineWidth = 1;
       xyCtx.beginPath();
@@ -203,7 +323,6 @@
       xyCtx.moveTo(0, xyCanvas.height * 0.382); xyCtx.lineTo(xyCanvas.width, xyCanvas.height * 0.382);
       xyCtx.stroke();
 
-      // Target Crosshair
       const px = (padX / 127) * xyCanvas.width;
       const py = (1 - (padY / 127)) * xyCanvas.height;
       xyCtx.fillStyle = '#58a6ff';
@@ -216,6 +335,7 @@
     }
 
     function handlePointerXY(e) {
+      ensureAudioContext();
       const rect = xyPad.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -236,7 +356,9 @@
     window.addEventListener('pointermove', e => { if (isPointerDown) handlePointerXY(e); });
     window.addEventListener('pointerup', () => isPointerDown = false);
 
-    // Virtual Polyphonic Keyboard (17 Notes: C3 to E4)
+    // -------------------------------------------------------------------------
+    // 4. Polyphonic Touch Keyboard (C3 to E4)
+    // -------------------------------------------------------------------------
     const keyboard = document.getElementById('keyboard');
     const notes = [
       { n: 48, b: false }, { n: 49, b: true, left: 7.2 },
@@ -260,23 +382,33 @@
         el.style.left = `${key.left}%`;
       }
       el.dataset.note = key.n;
-      const triggerNote = (active) => {
-        el.classList.toggle('active', active);
-        sendMIDI([active ? 0x90 : 0x80, key.n, active ? 100 : 0]);
+
+      const noteStart = (e) => {
+        e.preventDefault();
+        el.classList.add('active');
+        playLocalNoteOn(key.n, 105);
+        sendMIDI([0x90, key.n, 105]);
       };
-      el.addEventListener('pointerdown', e => { e.preventDefault(); triggerNote(true); });
-      el.addEventListener('pointerup', () => triggerNote(false));
-      el.addEventListener('pointerleave', () => triggerNote(false));
+
+      const noteEnd = (e) => {
+        e.preventDefault();
+        el.classList.remove('active');
+        stopLocalNoteOff(key.n);
+        sendMIDI([0x80, key.n, 0]);
+      };
+
+      el.addEventListener('pointerdown', noteStart);
+      el.addEventListener('pointerup', noteEnd);
+      el.addEventListener('pointerleave', noteEnd);
       keyboard.appendChild(el);
     });
 
-    // Visualizer Oscilloscope Animation
+    // -------------------------------------------------------------------------
+    // 5. True Audio Scope Visualizer (WebGL / Web Audio Analyser)
+    // -------------------------------------------------------------------------
     const scopeCanvas = document.getElementById('scopeCanvas');
     const scopeCtx = scopeCanvas.getContext('2d');
-    let scopePhase = 0;
-    let flashIntensity = 0;
-
-    function triggerScopeFlash() { flashIntensity = 1.0; }
+    const timeData = new Uint8Array(1024);
 
     function renderScope() {
       scopeCanvas.width = scopeCanvas.clientWidth;
@@ -285,23 +417,32 @@
       scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
 
       scopeCtx.lineWidth = 2;
-      scopeCtx.strokeStyle = flashIntensity > 0.05 ? '#e3b341' : '#58a6ff';
-      if (flashIntensity > 0.05) flashIntensity *= 0.92;
-
+      scopeCtx.strokeStyle = activeVoices.size > 0 ? '#e3b341' : '#58a6ff';
       scopeCtx.beginPath();
-      const h = scopeCanvas.height / 2;
-      const w = scopeCanvas.width;
-      for (let x = 0; x < w; x++) {
-        const normX = x / w;
-        const y = h + Math.sin(normX * 18 + scopePhase) * (h * 0.45) * (0.6 + flashIntensity * 0.4);
-        if (x === 0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
+
+      if (analyser && activeVoices.size > 0) {
+        analyser.getByteTimeDomainData(timeData);
+        const sliceWidth = scopeCanvas.width / 1024;
+        let x = 0;
+        for (let i = 0; i < 1024; i++) {
+          const v = timeData[i] / 128.0;
+          const y = (v * scopeCanvas.height) / 2;
+          if (i === 0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
+          x += sliceWidth;
+        }
+      } else {
+        // Idle Flat Line
+        const midY = scopeCanvas.height / 2;
+        scopeCtx.moveTo(0, midY);
+        scopeCtx.lineTo(scopeCanvas.width, midY);
       }
       scopeCtx.stroke();
-      scopePhase += 0.08;
       requestAnimationFrame(renderScope);
     }
 
-    // WebSerial Connection
+    // -------------------------------------------------------------------------
+    // 6. WebSerial Integration
+    // -------------------------------------------------------------------------
     document.getElementById('btnSerial').onclick = async () => {
       if ('serial' in navigator) {
         try {
