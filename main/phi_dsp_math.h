@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
+#include "esp_cpu.h"
 
 // Golden Ratio Fundamental Constants
 constexpr float PHI_RATIO            = 1.618033988749895f;
@@ -10,29 +11,27 @@ constexpr float PHI_INV              = 0.618033988749895f;   // 1 / phi
 constexpr float PHI_INV_SQ           = 0.381966011250105f;   // 1 / phi^2
 constexpr float PHI_OPTIMAL_Q        = 0.786151377757423f;   // 1 / sqrt(phi) - non-modal resonant damping
 
+// Fibonacci Sequence Taps for FDN Reverb / Delay Networks
+constexpr size_t FIBONACCI_TAPS[8]   = { 55, 89, 144, 233, 377, 610, 987, 1597 };
+
 // DSP Engine Configuration
 constexpr size_t DSP_SAMPLE_RATE     = 48000;
 constexpr size_t DSP_BLOCK_SIZE      = 64;
 constexpr size_t DSP_NUM_CHANNELS    = 8;
 constexpr size_t RING_BUFFER_FRAMES  = 256;
 
-// Golden Ratio Watermark Boundaries for Elastic Queue Damping
-constexpr size_t QUEUE_LOW_WATERMARK  = static_cast<size_t>(RING_BUFFER_FRAMES * PHI_INV_SQ); // ~38.2%
-constexpr size_t QUEUE_HIGH_WATERMARK = static_cast<size_t>(RING_BUFFER_FRAMES * PHI_INV);    // ~61.8%
+// CPU Performance Calculations: Cycles available per block at 400 MHz (400M * 64 / 48000 = 533,333 cycles)
+constexpr float CPU_MAX_BLOCK_CYCLES = (400000000.0f * static_cast<float>(DSP_BLOCK_SIZE)) / static_cast<float>(DSP_SAMPLE_RATE);
 
-// RISC-V Vector-Friendly Inlined DSP Routines
-static inline void phi_simd_vector_scale_add(
-    const float* __restrict__ src,
-    float* __restrict__ dst,
-    float scale,
-    size_t count
-) {
-    // Auto-vectorized loop leveraging RISC-V SIMD pipeline via 32-byte alignment
-    for (size_t i = 0; i < count; ++i) {
-        dst[i] += src[i] * scale;
-    }
-}
+// Real-time RISC-V Telemetry Metrics
+struct RiscvDspTelemetry {
+    uint32_t last_cycles;
+    uint32_t peak_cycles;
+    float cpu_load_pct;
+    uint32_t blocks_processed;
+};
 
+// SIMD Block Interleave Routine (Optimized for RISC-V)
 static inline void phi_simd_interleave_to_q31(
     const float* __restrict__ left,
     const float* __restrict__ right,

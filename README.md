@@ -6,7 +6,7 @@
 ![Target: ESP32-P4](https://img.shields.io/badge/Target-ESP32--P4-red.svg)
 ![Architecture: RISC--V](https://img.shields.io/badge/Architecture-RISC--V%20SIMD-orange.svg)
 
-An all-in-one embedded audio processing platform combining **Faust / Pure Data real-time DSP**, **USB Audio Class 2.0 (480 Mbps High-Speed)**, and **8-channel TDM hardware output**, designed exclusively for the dual-core **ESP32-P4 RISC-V SoC** (400 MHz).
+An all-in-one embedded audio processing platform combining **Faust real-time DSP**, **USB Audio Class 2.0 (480 Mbps High-Speed)**, **MIDI CC/Pitch modulation**, **I2C Multichannel Codec control**, and **8-channel TDM hardware output**, designed exclusively for the dual-core **ESP32-P4 RISC-V SoC** (400 MHz).
 
 ---
 
@@ -16,15 +16,20 @@ An all-in-one embedded audio processing platform combining **Faust / Pure Data r
       +-------------------------------------------------------------+
       |                         ESP32-P4                            |
       |                                                             |
-      |  [Core 0]                                                   |
+      |  [Core 0 - Control & Telemetry]                             |
       |   +-------------------+        +-------------------------+  |
-USB <====>| TinyUSB UAC2 High |<======>| Phi RingBuffer Queue    |  |
-(480M)|   | Speed Subsystem   |        | (Watermarks: 38% / 62%) |  |
+USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
+(480M)|   | MIDI Subsystem    |        | (Watermarks: 38% / 62%) |  |
+      |   +-------------------+        +-------------------------+  |
+      |   +-------------------+        +-------------------------+  |
+      |   | Codec I2C Master  |        | RISC-V Cycle Telemetry  |  |
+      |   | (GPIO 7 / 8)      |        | (% DSP Load Monitoring) |  |
       |   +-------------------+        +-------------------------+  |
       |                                             ^               |
-      |  [Core 1]                                   |               |
+      |  [Core 1 - Real-Time Audio Engine]          |               |
       |   +-----------------------------------------v------------+  |
       |   | Faust C++ DSP Core (32-byte SIMD vector alignment)   |  |
+      |   | Dynamic MIDI CC & Pitch Modulation Interface         |  |
       |   +------------------------------------------------------+  |
       |                                 |                           |
       |                                 v                           |
@@ -38,18 +43,7 @@ USB <====>| TinyUSB UAC2 High |<======>| Phi RingBuffer Queue    |  |
 
 ---
 
-## Key Architectural Features
-
-* **Monolithic Zero-Copy Audio Pipeline:** Direct bridge between UAC2 USB endpoints, Faust DSP registers, and hardware TDM DMA channels without CPU copy overhead.
-* **Core Isolation:** Core 0 manages USB enumeration, descriptors, and I/O interrupts. Core 1 runs the Faust DSP compute loop with zero jitter.
-* **RISC-V SIMD Optimization:** Audio scratchbuffers strictly aligned to 32-byte boundaries (`alignas(32)`) with vector dot-product and saturation inlines in `phi_dsp_math.h`.
-* **Golden Ratio ($\\phi \\approx 1.618$) Dynamics:**
-  * Filter damping: Non-modal $Q = 1 / \\sqrt{\\phi} \\approx 0.7861$.
-  * Asymmetric queue watermarks: $38.2\\%$ and $61.8\\%$ preventing buffer oscillation.
-
----
-
-## Default Hardware Pinout (ESP32-P4)
+## Hardware Pinout (ESP32-P4)
 
 | Signal | ESP32-P4 GPIO | Description |
 | :--- | :--- | :--- |
@@ -57,16 +51,33 @@ USB <====>| TinyUSB UAC2 High |<======>| Phi RingBuffer Queue    |  |
 | **TDM WS / FS** | GPIO 13 | Frame Sync (Word Select) |
 | **TDM DOUT** | GPIO 11 | Serial Audio Data Output (8 Time Slots to DAC) |
 | **TDM DIN** | GPIO 10 | Serial Audio Data Input (8 Time Slots from ADC) |
-| **USB D+ / D-** | On-chip HS PHY | Direct connection to USB-C port |
+| **I2C SDA** | GPIO 7 | Multichannel Codec Control Data (PCM3168A / CS42448) |
+| **I2C SCL** | GPIO 8 | Multichannel Codec Control Clock |
+| **USB D+ / D-** | On-chip HS PHY | Direct connection to USB-C port (480 Mbps) |
 
 ---
 
-## Compiling Faust `.dsp` Files
+## MIDI CC Default Mapping
 
-To compile any Faust DSP algorithm directly for this repository:
+| Controller | Function | Range / Mapping |
+| :--- | :--- | :--- |
+| **Note On / Off** | Pitch Tracking | $f = 440 \\cdot 2^{(note - 69) / 12}$ Hz |
+| **Pitch Bend** | Microtonal Detune | $\\pm 2$ Semitones |
+| **CC 74** | Cutoff Frequency | Lowpass Filter Cutoff ($50\\text{ Hz} - 12\\text{ kHz}$) |
+| **CC 71** | Resonance / Q | Scaled around Golden Ratio ($Q = 1 / \\sqrt{\\phi} \\approx 0.7861$) |
+| **CC 7** | Master Gain | $0.0 - 1.0$ (S-curve smoothed) |
+
+---
+
+## Included Faust DSP Presets
+
+* **`dsp/phi_synth.dsp`**: Polyphonic dual-oscillator synthesizer with $\\phi$-tuned overtones and anti-resonant damping filter.
+* **`dsp/fibonacci_fdn.dsp`**: 8-channel Feedback Delay Network reverb based on prime Fibonacci sample taps (55 to 1597 samples).
+
+To compile any `.dsp` algorithm directly into the firmware:
 
 ```bash
-faust -a faust/architecture/esp32p4.cpp my_synth.dsp -o main/faust_dsp_core.cpp
+python3 tools/compile_faust.py dsp/phi_synth.dsp
 ```
 
 ---
