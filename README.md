@@ -2,11 +2,20 @@
 
 [![ESP32-P4 Faust DSP CI](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml/badge.svg)](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/kniajevich/p4-faust-dsp?color=blue)](https://github.com/kniajevich/p4-faust-dsp/releases/latest)
+[![Web Console](https://img.shields.io/badge/Web%20Console-GitHub%20Pages-brightgreen.svg)](https://kniajevich.github.io/p4-faust-dsp/)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![Target: ESP32-P4](https://img.shields.io/badge/Target-ESP32--P4-red.svg)
 ![Architecture: RISC--V](https://img.shields.io/badge/Architecture-RISC--V%20SIMD-orange.svg)
 
 An all-in-one embedded audio processing platform combining **Faust & Pure Data real-time DSP**, **USB Audio Class 2.0 (480 Mbps High-Speed)**, **Eurorack 1V/Oct CV/Gate**, **I2C Multichannel Codec control**, and **8-channel TDM hardware output**, designed exclusively for the dual-core **ESP32-P4 RISC-V SoC** (400 MHz).
+
+---
+
+## Live Web Console & Flasher
+
+Access the browser-based control surface and flasher directly at:  
+👉 **[https://kniajevich.github.io/p4-faust-dsp/](https://kniajevich.github.io/p4-faust-dsp/)**  
+*(Requires Chrome or Edge for WebSerial flashing and Web-MIDI parameter control)*.
 
 ---
 
@@ -43,26 +52,21 @@ USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
 
 ---
 
-## Hardware Pinout (ESP32-P4)
+## Eurorack Hardware Modular Integration
 
-| Signal | ESP32-P4 GPIO | Description |
-| :--- | :--- | :--- |
-| **TDM BCLK** | GPIO 12 | Bit Clock ($48000 \\times 8 \\times 32 = 12.288\\text{ MHz}$) |
-| **TDM WS / FS** | GPIO 13 | Frame Sync ($48\\text{ kHz}$) |
-| **TDM DOUT** | GPIO 11 | Serial Audio Data Output (8 Time Slots to DAC) |
-| **TDM DIN** | GPIO 10 | Serial Audio Data Input (8 Time Slots from ADC) |
-| **I2C SDA** | GPIO 7 | Multichannel Codec Control Data (PCM3168A / CS42448) |
-| **I2C SCL** | GPIO 8 | Multichannel Codec Control Clock |
-| **Eurorack CV In** | GPIO 1 (ADC1_CH0) | 1V/Oct Analog Pitch Control ($0-3.3\\text{V}$) |
-| **Eurorack Gate** | GPIO 9 | Note Trigger Interrupt (Active High) |
-| **USB D+ / D-** | On-chip HS PHY | Direct connection to USB-C port (480 Mbps) |
+* Complete schematic and PCB design guide: [hardware/eurorack_shield_spec.md](hardware/eurorack_shield_spec.md)
+* Direct hardware bring-up and flashing steps: [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)
 
 ---
 
-## Verification & Control Utilities
+## Included Faust DSP Presets
 
-* **Host Audio Verification Suite:** `python3 tools/audio_test_suite.py` measures Round-Trip Latency (RTL) and channel crosstalk.
-* **Web Control & Flasher Interface:** Open `web/index.html` in Chrome or Edge to control parameters via Web-MIDI and flash binaries via WebSerial.
+| Preset File | Description | Controls |
+| :--- | :--- | :--- |
+| `dsp/phi_synth.dsp` | Polyphonic dual-oscillator synthesizer with anti-standing filter | Pitch, Cutoff (CC 74), Resonance (CC 71) |
+| `dsp/phi_wavetable.dsp` | Dual morphing wavetable synth with $\phi$-overtone balance | Morph (CC 1), Cutoff (CC 74), Gain (CC 7) |
+| `dsp/phi_compressor.dsp` | Golden ratio stereo dynamics mastering compressor | Threshold (CC 70), Ratio (CC 71), Gain (CC 7) |
+| `dsp/fibonacci_fdn.dsp` | 8-channel spatial Feedback Delay Network reverb | Feedback (CC 1), Damping (CC 74) |
 
 ---
 
