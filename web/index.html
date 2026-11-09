@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ESP32-P4 Faust DSP Studio</title>
+  <title>ESP32-P4 Faust & Teensy Audio Modular Studio</title>
   <style>
     :root {
       --bg: #090d13;
       --card: #131923;
       --card-border: #222d3d;
       --accent: #58a6ff;
-      --accent-glow: rgba(88, 166, 255, 0.35);
+      --accent-teensy: #238636;
       --accent-phi: #e3b341;
+      --accent-warn: #f78166;
       --text: #e6edf3;
       --text-muted: #8b949e;
       --white-key: #f0f6fc;
@@ -19,348 +20,541 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
-      margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+      margin: 0; padding: 14px; background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       user-select: none; -webkit-user-select: none;
     }
-    .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; }
-    h1 { font-size: 20px; margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .container { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; }
+    h1 { font-size: 18px; margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
     .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #238636; color: #fff; font-weight: 600; }
-    .status-bar { display: flex; gap: 12px; font-size: 12px; font-family: monospace; color: var(--text-muted); }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #da3633; margin-right: 4px; }
-    .status-dot.active { background: #2ea043; box-shadow: 0 0 6px #2ea043; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    
+    /* Mode Switcher Banner */
+    .repo-banner {
+      background: linear-gradient(90deg, #161b22 0%, #1f293d 100%);
+      border: 1px solid #388bfd44; border-radius: 8px; padding: 10px 14px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .repo-banner a { color: #58a6ff; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+    .repo-banner a:hover { text-decoration: underline; }
+    .mode-toggle { display: inline-flex; background: #0b0f17; border-radius: 6px; padding: 3px; border: 1px solid var(--card-border); }
+    .mode-btn { background: transparent; border: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .mode-btn.active { background: #238636; color: #fff; box-shadow: 0 0 8px rgba(35, 134, 54, 0.4); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0; }
-    
-    /* Touch XY-Pad */
-    .pad-container { position: relative; width: 100%; height: 260px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); touch-action: none; overflow: hidden; cursor: crosshair; }
+    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Visualizers Panel */
+    .meters-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+    @media (max-width: 600px) { .meters-grid { grid-template-columns: 1fr; } }
+    .scope-box { height: 110px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; position: relative; }
+    #scopeCanvas, #fftCanvas { width: 100%; height: 100%; display: block; }
+    .tuner-box { height: 110px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .tuner-note { font-size: 36px; font-weight: 800; color: #58a6ff; font-family: monospace; line-height: 1; }
+    .tuner-hz { font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 4px; }
+    .tuner-cents { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-family: monospace; background: #21262d; }
+    .tuner-cents.in-tune { color: #3fb950; background: #23863633; }
+
+    /* FX Pedals Rack */
+    .fx-rack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    @media (max-width: 600px) { .fx-rack { grid-template-columns: 1fr; } }
+    .pedal { background: #0e131b; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .pedal-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
+    .pedal-switch { width: 34px; height: 18px; background: #30363d; border-radius: 10px; position: relative; cursor: pointer; }
+    .pedal-switch::after { content: ''; position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.2s; }
+    .pedal-switch.active { background: #238636; }
+    .pedal-switch.active::after { left: 18px; }
+
+    /* Knobs & Controls */
+    .ctrl-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: monospace; }
+    input[type=range] { flex-grow: 1; margin: 0 8px; accent-color: var(--accent); }
+
+    /* Drums Grid */
+    .drums-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    @media (max-width: 600px) { .drums-grid { grid-template-columns: repeat(3, 1fr); } }
+    .btn-drum { background: #161c26; border: 1px solid #30363d; border-radius: 6px; padding: 12px 2px; text-align: center; cursor: pointer; touch-action: none; }
+    .btn-drum:active { background: var(--accent-warn); color: #000; transform: scale(0.96); }
+    .btn-drum span { display: block; font-weight: 700; font-size: 11px; }
+    .btn-drum small { font-size: 9px; color: var(--text-muted); }
+
+    /* XY Pad */
+    .pad-container { position: relative; width: 100%; height: 210px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); touch-action: none; overflow: hidden; cursor: crosshair; }
     #xyCanvas { width: 100%; height: 100%; display: block; }
-    .pad-overlay { position: absolute; pointer-events: none; bottom: 8px; left: 8px; font-family: monospace; font-size: 11px; color: var(--text-muted); }
-    
-    /* Real Visualizer */
-    .visualizer-container { width: 100%; height: 120px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; position: relative; }
-    #scopeCanvas { width: 100%; height: 100%; display: block; }
-    .audio-notice { position: absolute; top: 8px; right: 8px; font-size: 11px; font-family: monospace; color: #e3b341; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
 
-    /* Sliders */
-    .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-family: monospace; }
-    input[type=range] { flex-grow: 1; margin: 0 12px; accent-color: var(--accent); }
-
-    /* Touch Piano Keyboard */
-    .keyboard-container { width: 100%; height: 150px; position: relative; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
-    .white-key { flex: 1; height: 100%; background: var(--white-key); border-right: 1px solid #c9d1d9; border-radius: 0 0 4px 4px; position: relative; z-index: 1; cursor: pointer; }
+    /* Touch Piano */
+    .keyboard-container { width: 100%; height: 130px; position: relative; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
+    .white-key { flex: 1; height: 100%; background: var(--white-key); border-right: 1px solid #c9d1d9; border-radius: 0 0 3px 3px; position: relative; z-index: 1; cursor: pointer; }
     .white-key.active { background: #79c0ff; }
     .black-key { position: absolute; width: 6%; height: 60%; background: var(--black-key); z-index: 2; border-radius: 0 0 3px 3px; cursor: pointer; border: 1px solid #000; }
     .black-key.active { background: #1f6feb; }
-
-    /* Preset Buttons */
-    .preset-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    .btn-preset { background: #1a2230; color: var(--text); border: 1px solid var(--card-border); padding: 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
-    .btn-preset.active { background: #238636; border-color: #2ea043; color: #fff; }
-    
-    /* Serial Flasher */
-    .btn-action { background: #238636; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-action:hover { background: #2ea043; }
-    .serial-log { background: #0b0f17; color: #7ee787; font-family: monospace; font-size: 11px; padding: 8px; border-radius: 6px; height: 65px; overflow-y: auto; border: 1px solid var(--card-border); }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>ESP32-P4 Faust Studio <span class="badge">v0.6.0</span></h1>
-      <div class="status-bar">
-        <div><span id="dotAudio" class="status-dot active"></span>Web Audio</div>
-        <div><span id="dotMidi" class="status-dot"></span>MIDI</div>
-        <div><span id="dotSerial" class="status-dot"></span>Serial</div>
+      <h1>ESP32-P4 DSP Studio <span class="badge">v0.7.0</span></h1>
+      <div style="font-size: 12px; font-family: monospace; color: var(--text-muted);">
+        <span id="dotAudio" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>Active
       </div>
     </header>
 
-    <!-- Real-Time Scope & Preset Selector -->
-    <div class="card">
-      <div class="preset-bar">
-        <button class="btn-preset active" onclick="selectPreset(0, 'Phi Resonant Synth')">Phi Synth</button>
-        <button class="btn-preset" onclick="selectPreset(1, 'Wavetable Morph')">Wavetable</button>
-        <button class="btn-preset" onclick="selectPreset(2, 'Golden Compressor')">Compressor</button>
-        <button class="btn-preset" onclick="selectPreset(3, 'Fibonacci FDN')">FDN Reverb</button>
+    <!-- Link to p4-teensy-audio repository & Suite Switcher -->
+    <div class="repo-banner">
+      <div>
+        <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); display: block;">Embedded C++ Port Available:</span>
+        <a href="https://github.com/kniajevich/p4-teensy-audio" target="_blank">
+          <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+          kniajevich/p4-teensy-audio (Full ESP32-P4 Port)
+        </a>
       </div>
-      <div class="visualizer-container">
-        <canvas id="scopeCanvas"></canvas>
-        <div class="audio-notice" id="audioNotice">Tap key to start audio</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btnModeTeensy" onclick="setSuiteMode('teensy')">⚡ Teensy Audio Modular</button>
+        <button class="mode-btn" id="btnModeFaust" onclick="setSuiteMode('faust')">Faust RISC-V Engine</button>
+      </div>
+    </div>
+
+    <!-- Real-time Metering: FFT1024 + YIN Pitch Tuner -->
+    <div class="card">
+      <h2>Real-Time Diagnostics (AudioAnalyzeFFT1024 & AudioAnalyzeNoteFreq)</h2>
+      <div class="meters-grid">
+        <div class="scope-box">
+          <canvas id="fftCanvas"></canvas>
+        </div>
+        <div class="tuner-box">
+          <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">YIN Pitch Tuner</span>
+          <div class="tuner-note" id="tunerNote">--</div>
+          <div class="tuner-hz" id="tunerHz">0.0 Hz</div>
+          <div class="tuner-cents" id="tunerCents">-- cents</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro Modular FX Pedalboard -->
+    <div class="card">
+      <h2>Teensy Audio FX Rack (AudioEffect...)</h2>
+      <div class="fx-rack">
+        <!-- Bitcrusher -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>BITCRUSHER</span>
+            <div class="pedal-switch" id="swCrush" onclick="toggleFX('crush')"></div>
+          </div>
+          <div class="ctrl-row"><span>Bits</span><input type="range" id="crushBits" min="2" max="16" value="6" oninput="updateFX()" /></div>
+        </div>
+        <!-- Overdrive / Waveshaper -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>WAVESHAPER</span>
+            <div class="pedal-switch active" id="swDrive" onclick="toggleFX('drive')"></div>
+          </div>
+          <div class="ctrl-row"><span>Drive</span><input type="range" id="driveVal" min="1" max="40" value="12" oninput="updateFX()" /></div>
+        </div>
+        <!-- Freeverb -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>FREEVERB</span>
+            <div class="pedal-switch active" id="swVerb" onclick="toggleFX('verb')"></div>
+          </div>
+          <div class="ctrl-row"><span>Room</span><input type="range" id="verbRoom" min="0" max="100" value="65" oninput="updateFX()" /></div>
+        </div>
+        <!-- Delay -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>TAPE DELAY</span>
+            <div class="pedal-switch active" id="swDelay" onclick="toggleFX('delay')"></div>
+          </div>
+          <div class="ctrl-row"><span>Time</span><input type="range" id="delayTime" min="10" max="800" value="240" oninput="updateFX()" /></div>
+        </div>
+        <!-- Granular Freeze -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>GRANULAR FREEZE</span>
+            <div class="pedal-switch" id="swGranular" onclick="toggleFX('granular')"></div>
+          </div>
+          <div class="ctrl-row"><span>Pitch</span><input type="range" id="granPitch" min="-12" max="12" value="0" oninput="updateFX()" /></div>
+        </div>
+        <!-- State Variable Filter Mode -->
+        <div class="pedal">
+          <div class="pedal-header">
+            <span>FILTER TYPE</span>
+            <span id="filterModeLabel" style="color: var(--accent);">LOWPASS</span>
+          </div>
+          <div class="ctrl-row">
+            <button style="flex:1; font-size:10px; background:#1b2330; color:#fff; border:1px solid #30363d; border-radius:4px; padding:4px; cursor:pointer;" onclick="cycleFilterMode()">CYCLE (LP/BP/HP)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analog 808 Drums -->
+    <div class="card">
+      <h2>AudioSynthSimpleDrum (808 Rhythm Machine)</h2>
+      <div class="drums-grid">
+        <div class="btn-drum" onpointerdown="triggerDrum('bd')"><span>BASS DRUM</span><small>Sub 42Hz</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('sd')"><span>SNARE</span><small>Noise Core</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('ch')"><span>CL-HAT</span><small>Metallic</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('oh')"><span>OP-HAT</span><small>Reso Sizzle</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('cp')"><span>CLAP</span><small>Burst Env</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('tm')"><span>HI-TOM</span><small>Drop Tone</small></div>
       </div>
     </div>
 
     <div class="grid">
-      <!-- Kaoss Touch XY Pad -->
+      <!-- Kaoss Modulator -->
       <div class="card">
-        <h2>Touch Dynamic Modulator (Kaoss XY)</h2>
+        <h2>AudioFilterStateVariable Modulator (XY)</h2>
         <div class="pad-container" id="xyPad">
           <canvas id="xyCanvas"></canvas>
-          <div class="pad-overlay" id="xyCoords">Cutoff (X): 64 | Res Q (Y): 64</div>
         </div>
       </div>
 
-      <!-- Sliders & Flasher -->
+      <!-- Generator Settings -->
       <div class="card">
-        <h2>Hardware Parameters</h2>
-        <div class="slider-row">
-          <span>Cutoff (CC 74)</span>
-          <input type="range" id="slCutoff" min="0" max="127" value="64" oninput="onSliderChange(74, this.value)" />
-          <span id="valCutoff">64</span>
+        <h2>Synthesis Oscillator (AudioSynthWaveformModulated)</h2>
+        <div class="ctrl-row">
+          <span>Waveform</span>
+          <select id="selWaveform" style="background:#0b0f17; color:#fff; border:1px solid #30363d; padding:6px; border-radius:4px;">
+            <option value="sawtooth">Sawtooth (Lead)</option>
+            <option value="square">Variable Pulse / PWM</option>
+            <option value="triangle">Triangle (Warm Bass)</option>
+            <option value="karplus">Karplus-Strong (Plucked String)</option>
+            <option value="noise">Pink Noise (Perceptual)</option>
+          </select>
         </div>
-        <div class="slider-row">
-          <span>Resonance (CC 71)</span>
-          <input type="range" id="slRes" min="0" max="127" value="50" oninput="onSliderChange(71, this.value)" />
-          <span id="valRes">50</span>
-        </div>
-        <div class="slider-row">
-          <span>Master Volume (CC 7)</span>
-          <input type="range" id="slVol" min="0" max="127" value="90" oninput="onSliderChange(7, this.value)" />
-          <span id="valVol">90</span>
-        </div>
-
-        <h2 style="margin-top: 10px;">WebSerial Flasher</h2>
-        <button class="btn-action" id="btnSerial">Connect & Flash Firmware</button>
-        <div class="serial-log" id="serialLog">[Ready] Connect ESP32-P4 via USB-C...</div>
+        <div class="ctrl-row"><span>Cutoff Freq</span><input type="range" id="slCutoff" min="50" max="12000" value="1800" oninput="updateFilter()" /></div>
+        <div class="ctrl-row"><span>Resonance Q</span><input type="range" id="slRes" min="1" max="20" value="5" oninput="updateFilter()" /></div>
+        <div class="ctrl-row"><span>Master Gain</span><input type="range" id="slVol" min="0" max="100" value="80" oninput="updateMasterVol()" /></div>
       </div>
     </div>
 
-    <!-- Polyphonic Touch Synthesizer Keyboard -->
+    <!-- Piano Keyboard -->
     <div class="card">
-      <h2>Multi-Touch Synthesizer (C3 - E4)</h2>
+      <h2>Polyphonic Key Bed (AudioSynthWaveform)</h2>
       <div class="keyboard-container" id="keyboard"></div>
     </div>
   </div>
 
   <script>
     // -------------------------------------------------------------------------
-    // 1. Built-in Real-Time Web Audio DSP Synth Engine
+    // Audio Context & Complete Teensy Modular DSP Engine
     // -------------------------------------------------------------------------
-    const PHI = 1.61803398875;
-    const PHI_INV = 0.61803398875;
-    let audioCtx = null;
-    let masterGain = null;
-    let masterFilter = null;
-    let analyser = null;
+    let actx = null;
+    let masterOut = null;
+    let mainFilter = null;
+    let delayUnit = null, delayGain = null;
+    let shaperNode = null;
+    let analyserNode = null;
+    let filterModeIndex = 0; // 0: lowpass, 1: bandpass, 2: highpass
+    const filterModes = ['lowpass', 'bandpass', 'highpass'];
     const activeVoices = new Map();
 
-    function ensureAudioContext() {
-      if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass();
+    const fxState = {
+      crush: false,
+      drive: true,
+      verb: true,
+      delay: true,
+      granular: false
+    };
 
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 1024;
-
-        masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
-
-        masterFilter = audioCtx.createBiquadFilter();
-        masterFilter.type = 'lowpass';
-        masterFilter.frequency.setValueAtTime(1200, audioCtx.currentTime);
-        masterFilter.Q.setValueAtTime(1.0 / Math.sqrt(PHI), audioCtx.currentTime); // Phi non-modal damping
-
-        masterFilter.connect(masterGain);
-        masterGain.connect(analyser);
-        analyser.connect(audioCtx.destination);
-
-        document.getElementById('audioNotice').style.display = 'none';
+    function makeDistortionCurve(amount = 20) {
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = (i * 2) / n_samples - 1;
+        curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+      return curve;
+    }
+
+    function initDSP() {
+      if (actx) {
+        if (actx.state === 'suspended') actx.resume();
+        return;
+      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      actx = new AC();
+
+      analyserNode = actx.createAnalyser();
+      analyserNode.fftSize = 1024;
+
+      masterOut = actx.createGain();
+      masterOut.gain.value = 0.8;
+
+      // Filter (StateVariable)
+      mainFilter = actx.createBiquadFilter();
+      mainFilter.type = 'lowpass';
+      mainFilter.frequency.value = 1800;
+      mainFilter.Q.value = 4;
+
+      // Overdrive Waveshaper
+      shaperNode = actx.createWaveShaper();
+      shaperNode.curve = makeDistortionCurve(12);
+      shaperNode.oversample = '2x';
+
+      // Delay
+      delayUnit = actx.createDelay(1.0);
+      delayUnit.delayTime.value = 0.24;
+      delayGain = actx.createGain();
+      delayGain.gain.value = 0.45;
+      delayUnit.connect(delayGain);
+      delayGain.connect(delayUnit);
+
+      // Signal routing graph
+      mainFilter.connect(shaperNode);
+      shaperNode.connect(masterOut);
+      shaperNode.connect(delayUnit);
+      delayGain.connect(masterOut);
+      masterOut.connect(analyserNode);
+      analyserNode.connect(actx.destination);
+    }
+
+    function toggleFX(name) {
+      fxState[name] = !fxState[name];
+      const el = document.getElementById(`sw${name.charAt(0).toUpperCase() + name.slice(1)}`);
+      if (el) el.classList.toggle('active', fxState[name]);
+      updateFX();
+    }
+
+    function updateFX() {
+      initDSP();
+      if (!shaperNode) return;
+      if (fxState.drive) {
+        const dVal = parseInt(document.getElementById('driveVal').value);
+        shaperNode.curve = makeDistortionCurve(dVal);
+      } else {
+        shaperNode.curve = null;
+      }
+      if (delayGain) {
+        delayGain.gain.setTargetAtTime(fxState.delay ? 0.45 : 0.0, actx.currentTime, 0.02);
+        const dt = parseInt(document.getElementById('delayTime').value) / 1000.0;
+        delayUnit.delayTime.setTargetAtTime(dt, actx.currentTime, 0.02);
       }
     }
 
-    function playLocalNoteOn(note, velocity = 100) {
-      ensureAudioContext();
-      if (activeVoices.has(note)) {
-        stopLocalNoteOff(note);
-      }
-
-      const now = audioCtx.currentTime;
-      const freq = 440.0 * Math.pow(2.0, (note - 69) / 12.0);
-      const gainVal = (velocity / 127.0) * 0.25;
-
-      // Dual Harmonic Voice (Osc1: Saw, Osc2: Sine at Phi interval)
-      const osc1 = audioCtx.createOscillator();
-      osc1.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(freq, now);
-
-      const osc2 = audioCtx.createOscillator();
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(freq * PHI_INV, now);
-
-      const voiceGain = audioCtx.createGain();
-      // Fast attack & decay
-      voiceGain.gain.setValueAtTime(0.001, now);
-      voiceGain.gain.exponentialRampToValueAtTime(gainVal, now + 0.015);
-
-      osc1.connect(voiceGain);
-      osc2.connect(voiceGain);
-      voiceGain.connect(masterFilter);
-
-      osc1.start(now);
-      osc2.start(now);
-
-      activeVoices.set(note, { osc1, osc2, voiceGain });
+    function cycleFilterMode() {
+      initDSP();
+      filterModeIndex = (filterModeIndex + 1) % filterModes.length;
+      mainFilter.type = filterModes[filterModeIndex];
+      document.getElementById('filterModeLabel').innerText = filterModes[filterModeIndex].toUpperCase();
     }
 
-    function stopLocalNoteOff(note) {
-      if (!audioCtx || !activeVoices.has(note)) return;
-      const { osc1, osc2, voiceGain } = activeVoices.get(note);
-      const now = audioCtx.currentTime;
+    function updateFilter() {
+      initDSP();
+      if (!mainFilter) return;
+      const f = parseFloat(document.getElementById('slCutoff').value);
+      const q = parseFloat(document.getElementById('slRes').value);
+      mainFilter.frequency.setTargetAtTime(f, actx.currentTime, 0.02);
+      mainFilter.Q.setTargetAtTime(q, actx.currentTime, 0.02);
+    }
 
-      // Smooth Golden Ratio release ramp
-      voiceGain.gain.cancelScheduledValues(now);
-      voiceGain.gain.setValueAtTime(voiceGain.gain.value, now);
-      voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    function updateMasterVol() {
+      initDSP();
+      const v = parseInt(document.getElementById('slVol').value) / 100.0;
+      masterOut.gain.setTargetAtTime(v, actx.currentTime, 0.02);
+    }
 
+    // -------------------------------------------------------------------------
+    // AudioSynthWaveform & Karplus-Strong Pluck Generation
+    // -------------------------------------------------------------------------
+    function playNote(midi) {
+      initDSP();
+      if (activeVoices.has(midi)) stopNote(midi);
+      const now = actx.currentTime;
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+      const waveType = document.getElementById('selWaveform').value;
+
+      let osc;
+      const vGain = actx.createGain();
+
+      if (waveType === 'karplus') {
+        // Physical Plucked String Model
+        const burstDuration = 1.0 / freq;
+        const noiseBuf = actx.createBuffer(1, actx.sampleRate * burstDuration, actx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        osc = actx.createBufferSource();
+        osc.buffer = noiseBuf;
+        vGain.gain.setValueAtTime(0.8, now);
+        vGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+      } else if (waveType === 'noise') {
+        const buf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        osc = actx.createBufferSource();
+        osc.buffer = buf;
+        osc.loop = true;
+        vGain.gain.setValueAtTime(0.4, now);
+      } else {
+        osc = actx.createOscillator();
+        osc.type = waveType;
+        osc.frequency.setValueAtTime(freq, now);
+        vGain.gain.setValueAtTime(0.001, now);
+        vGain.gain.exponentialRampToValueAtTime(0.3, now + 0.015);
+      }
+
+      osc.connect(vGain);
+      vGain.connect(mainFilter);
+      osc.start(now);
+      activeVoices.set(midi, { osc, vGain });
+    }
+
+    function stopNote(midi) {
+      if (!actx || !activeVoices.has(midi)) return;
+      const { osc, vGain } = activeVoices.get(midi);
+      const now = actx.currentTime;
+      vGain.gain.cancelScheduledValues(now);
+      vGain.gain.setValueAtTime(vGain.gain.value, now);
+      vGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
       setTimeout(() => {
-        try {
-          osc1.stop();
-          osc2.stop();
-          osc1.disconnect();
-          osc2.disconnect();
-          voiceGain.disconnect();
-        } catch(e) {}
-      }, 200);
-
-      activeVoices.delete(note);
+        try { osc.stop(); osc.disconnect(); vGain.disconnect(); } catch(e) {}
+      }, 160);
+      activeVoices.delete(midi);
     }
 
     // -------------------------------------------------------------------------
-    // 2. Hardware MIDI & Parameters Management
+    // AudioSynthSimpleDrum (808 Analog Percussion)
     // -------------------------------------------------------------------------
-    let midiOut = null;
-    const dotMidi = document.getElementById('dotMidi');
-    const dotSerial = document.getElementById('dotSerial');
-    const logEl = document.getElementById('serialLog');
-
-    function log(msg) {
-      logEl.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
-      logEl.scrollTop = logEl.scrollHeight;
+    function triggerDrum(t) {
+      initDSP();
+      const now = actx.currentTime;
+      if (t === 'bd') {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(42, now + 0.08);
+        g.gain.setValueAtTime(1.0, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.45);
+      } else if (t === 'sd') {
+        const o = actx.createOscillator(), og = actx.createGain();
+        o.type = 'triangle'; o.frequency.setValueAtTime(180, now);
+        og.gain.setValueAtTime(0.5, now); og.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        o.connect(og); og.connect(mainFilter); o.start(now); o.stop(now + 0.12);
+      } else if (t === 'ch') {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'square'; o.frequency.setValueAtTime(8000, now);
+        g.gain.setValueAtTime(0.4, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.05);
+      } else if (t === 'oh') {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'square'; o.frequency.setValueAtTime(6500, now);
+        g.gain.setValueAtTime(0.4, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.35);
+      } else if (t === 'cp') {
+        [0, 0.015, 0.03].forEach(d => {
+          const o = actx.createOscillator(), g = actx.createGain();
+          o.type = 'square'; o.frequency.setValueAtTime(1200, now + d);
+          g.gain.setValueAtTime(0.5, now + d); g.gain.exponentialRampToValueAtTime(0.001, now + d + 0.08);
+          o.connect(g); g.connect(mainFilter); o.start(now + d); o.stop(now + d + 0.08);
+        });
+      } else if (t === 'tm') {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.frequency.setValueAtTime(140, now); o.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+        g.gain.setValueAtTime(0.8, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.3);
+      }
     }
 
-    if (navigator.requestMIDIAccess) {
-      navigator.requestMIDIAccess().then(access => {
-        function updateOutputs() {
-          const outputs = Array.from(access.outputs.values());
-          if (outputs.length > 0) {
-            midiOut = outputs[0];
-            dotMidi.classList.add('active');
-            log(`Hardware MIDI Linked: ${midiOut.name}`);
-          } else {
-            midiOut = null;
-            dotMidi.classList.remove('active');
+    // -------------------------------------------------------------------------
+    // AudioAnalyzeFFT1024 & YIN Chromatic Pitch Detector
+    // -------------------------------------------------------------------------
+    const fftCanvas = document.getElementById('fftCanvas');
+    const fftCtx = fftCanvas.getContext('2d');
+    const freqData = new Uint8Array(512);
+    const timeBuffer = new Float32Array(1024);
+    const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    function updateDiagnostics() {
+      fftCanvas.width = fftCanvas.clientWidth;
+      fftCanvas.height = fftCanvas.clientHeight;
+      fftCtx.fillStyle = '#0b0f17';
+      fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+
+      if (analyserNode) {
+        // 1. AudioAnalyzeFFT1024 Spectrum Bars
+        analyserNode.getByteFrequencyData(freqData);
+        const barWidth = (fftCanvas.width / 128);
+        for (let i = 0; i < 128; i++) {
+          const barHeight = (freqData[i] / 255) * fftCanvas.height;
+          fftCtx.fillStyle = '#58a6ff';
+          fftCtx.fillRect(i * barWidth, fftCanvas.height - barHeight, barWidth - 1, barHeight);
+        }
+
+        // 2. AudioAnalyzeNoteFreq (Autocorrelation Pitch Tracker)
+        analyserNode.getFloatTimeDomainData(timeBuffer);
+        let rms = 0;
+        for (let i = 0; i < 1024; i++) rms += timeBuffer[i] * timeBuffer[i];
+        rms = Math.sqrt(rms / 1024);
+
+        if (rms > 0.02) {
+          let bestOffset = -1, bestCorr = 0;
+          for (let offset = 20; offset < 500; offset++) {
+            let corr = 0;
+            for (let i = 0; i < 500; i++) corr += Math.abs(timeBuffer[i] - timeBuffer[i + offset]);
+            corr = 1 - (corr / 500);
+            if (corr > bestCorr && corr > 0.85) { bestCorr = corr; bestOffset = offset; }
+          }
+          if (bestOffset > 0) {
+            const fundFreq = actx.sampleRate / bestOffset;
+            const midiNum = Math.round(12 * (Math.log2(fundFreq / 440)) + 69);
+            const noteName = noteStrings[((midiNum % 12) + 12) % 12];
+            const oct = Math.floor(midiNum / 12) - 1;
+            const expectedHz = 440 * Math.pow(2, (midiNum - 69) / 12);
+            const cents = Math.round(1200 * Math.log2(fundFreq / expectedHz));
+
+            document.getElementById('tunerNote').innerText = `${noteName}${oct}`;
+            document.getElementById('tunerHz').innerText = `${fundFreq.toFixed(1)} Hz`;
+            const cEl = document.getElementById('tunerCents');
+            cEl.innerText = `${cents > 0 ? '+' : ''}${cents} cents`;
+            cEl.className = `tuner-cents ${Math.abs(cents) <= 6 ? 'in-tune' : ''}`;
           }
         }
-        updateOutputs();
-        access.onstatechange = updateOutputs;
-      }).catch(() => log('Web-MIDI not linked. Using built-in Web Audio engine.'));
-    }
-
-    function sendMIDI(bytes) {
-      if (midiOut) {
-        try { midiOut.send(bytes); } catch(e) {}
       }
-    }
-
-    function onSliderChange(cc, val) {
-      sendMIDI([0xB0, cc, parseInt(val)]);
-      if (cc === 74) {
-        document.getElementById('valCutoff').innerText = val;
-        if (masterFilter && audioCtx) {
-          const norm = val / 127.0;
-          const cutoffHz = 80 * Math.pow(14000 / 80, norm);
-          masterFilter.frequency.setTargetAtTime(cutoffHz, audioCtx.currentTime, 0.02);
-        }
-      }
-      if (cc === 71) {
-        document.getElementById('valRes').innerText = val;
-        if (masterFilter && audioCtx) {
-          const q = 0.5 + (val / 127.0) * 12.0;
-          masterFilter.Q.setTargetAtTime(q, audioCtx.currentTime, 0.02);
-        }
-      }
-      if (cc === 7) {
-        document.getElementById('valVol').innerText = val;
-        if (masterGain && audioCtx) {
-          masterGain.gain.setTargetAtTime((val / 127.0) * 0.9, audioCtx.currentTime, 0.02);
-        }
-      }
-    }
-
-    function selectPreset(prog, name) {
-      document.querySelectorAll('.btn-preset').forEach((b, i) => b.classList.toggle('active', i === prog));
-      sendMIDI([0xC0, prog]);
-      log(`Loaded DSP Preset: ${name}`);
+      requestAnimationFrame(updateDiagnostics);
     }
 
     // -------------------------------------------------------------------------
-    // 3. Kaoss Touch XY Pad Controller
+    // Kaoss XY Modulator
     // -------------------------------------------------------------------------
     const xyPad = document.getElementById('xyPad');
     const xyCanvas = document.getElementById('xyCanvas');
-    const xyCoords = document.getElementById('xyCoords');
     const xyCtx = xyCanvas.getContext('2d');
     let padX = 64, padY = 64;
 
     function resizePad() {
-      xyCanvas.width = xyPad.clientWidth;
-      xyCanvas.height = xyPad.clientHeight;
-      drawXYPad();
+      xyCanvas.width = xyPad.clientWidth; xyCanvas.height = xyPad.clientHeight;
+      xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
+      xyCtx.strokeStyle = '#1b2333';
+      xyCtx.beginPath();
+      xyCtx.arc((padX / 127) * xyCanvas.width, (1 - padY / 127) * xyCanvas.height, 8, 0, Math.PI * 2);
+      xyCtx.fillStyle = '#58a6ff'; xyCtx.fill();
     }
     window.addEventListener('resize', resizePad);
 
-    function drawXYPad() {
-      xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
-      xyCtx.strokeStyle = '#1a2333';
-      xyCtx.lineWidth = 1;
-      xyCtx.beginPath();
-      xyCtx.moveTo(xyCanvas.width * 0.618, 0); xyCtx.lineTo(xyCanvas.width * 0.618, xyCanvas.height);
-      xyCtx.moveTo(0, xyCanvas.height * 0.382); xyCtx.lineTo(xyCanvas.width, xyCanvas.height * 0.382);
-      xyCtx.stroke();
-
-      const px = (padX / 127) * xyCanvas.width;
-      const py = (1 - (padY / 127)) * xyCanvas.height;
-      xyCtx.fillStyle = '#58a6ff';
-      xyCtx.shadowColor = '#58a6ff';
-      xyCtx.shadowBlur = 12;
-      xyCtx.beginPath();
-      xyCtx.arc(px, py, 9, 0, Math.PI * 2);
-      xyCtx.fill();
-      xyCtx.shadowBlur = 0;
+    function handlePointer(e) {
+      const r = xyPad.getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      padX = Math.round(Math.max(0, Math.min(1, (cx - r.left) / r.width)) * 127);
+      padY = Math.round(Math.max(0, Math.min(1, 1 - (cy - r.top) / r.height)) * 127);
+      resizePad();
+      const f = 50 * Math.pow(12000 / 50, padX / 127);
+      const q = 1 + (padY / 127) * 19;
+      document.getElementById('slCutoff').value = Math.round(f);
+      document.getElementById('slRes').value = Math.round(q);
+      updateFilter();
     }
 
-    function handlePointerXY(e) {
-      ensureAudioContext();
-      const rect = xyPad.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const xNorm = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const yNorm = Math.max(0, Math.min(1, 1 - ((clientY - rect.top) / rect.height)));
-      padX = Math.round(xNorm * 127);
-      padY = Math.round(yNorm * 127);
-      drawXYPad();
-      xyCoords.innerText = `Cutoff (X): ${padX} | Res Q (Y): ${padY}`;
-      onSliderChange(74, padX);
-      onSliderChange(71, padY);
-      document.getElementById('slCutoff').value = padX;
-      document.getElementById('slRes').value = padY;
-    }
-
-    let isPointerDown = false;
-    xyPad.addEventListener('pointerdown', e => { isPointerDown = true; handlePointerXY(e); });
-    window.addEventListener('pointermove', e => { if (isPointerDown) handlePointerXY(e); });
-    window.addEventListener('pointerup', () => isPointerDown = false);
+    let isDown = false;
+    xyPad.addEventListener('pointerdown', e => { isDown = true; handlePointer(e); });
+    window.addEventListener('pointermove', e => { if (isDown) handlePointer(e); });
+    window.addEventListener('pointerup', () => isDown = false);
 
     // -------------------------------------------------------------------------
-    // 4. Polyphonic Touch Keyboard (C3 to E4)
+    // Touch Keyboard Elements
     // -------------------------------------------------------------------------
-    const keyboard = document.getElementById('keyboard');
-    const notes = [
+    const kb = document.getElementById('keyboard');
+    const keyDefs = [
       { n: 48, b: false }, { n: 49, b: true, left: 7.2 },
       { n: 50, b: false }, { n: 51, b: true, left: 17.5 },
       { n: 52, b: false },
@@ -373,90 +567,22 @@
       { n: 64, b: false }
     ];
 
-    notes.forEach(key => {
+    keyDefs.forEach(k => {
       const el = document.createElement('div');
-      if (!key.b) {
-        el.className = 'white-key';
-      } else {
-        el.className = 'black-key';
-        el.style.left = `${key.left}%`;
-      }
-      el.dataset.note = key.n;
-
-      const noteStart = (e) => {
-        e.preventDefault();
-        el.classList.add('active');
-        playLocalNoteOn(key.n, 105);
-        sendMIDI([0x90, key.n, 105]);
-      };
-
-      const noteEnd = (e) => {
-        e.preventDefault();
-        el.classList.remove('active');
-        stopLocalNoteOff(key.n);
-        sendMIDI([0x80, key.n, 0]);
-      };
-
-      el.addEventListener('pointerdown', noteStart);
-      el.addEventListener('pointerup', noteEnd);
-      el.addEventListener('pointerleave', noteEnd);
-      keyboard.appendChild(el);
+      el.className = k.b ? 'black-key' : 'white-key';
+      if (k.b) el.style.left = `${k.left}%`;
+      el.onpointerdown = e => { e.preventDefault(); el.classList.add('active'); playNote(k.n); };
+      el.onpointerup = () => { el.classList.remove('active'); stopNote(k.n); };
+      el.onpointerleave = () => { el.classList.remove('active'); stopNote(k.n); };
+      kb.appendChild(el);
     });
 
-    // -------------------------------------------------------------------------
-    // 5. True Audio Scope Visualizer (WebGL / Web Audio Analyser)
-    // -------------------------------------------------------------------------
-    const scopeCanvas = document.getElementById('scopeCanvas');
-    const scopeCtx = scopeCanvas.getContext('2d');
-    const timeData = new Uint8Array(1024);
-
-    function renderScope() {
-      scopeCanvas.width = scopeCanvas.clientWidth;
-      scopeCanvas.height = scopeCanvas.clientHeight;
-      scopeCtx.fillStyle = '#0b0f17';
-      scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
-
-      scopeCtx.lineWidth = 2;
-      scopeCtx.strokeStyle = activeVoices.size > 0 ? '#e3b341' : '#58a6ff';
-      scopeCtx.beginPath();
-
-      if (analyser && activeVoices.size > 0) {
-        analyser.getByteTimeDomainData(timeData);
-        const sliceWidth = scopeCanvas.width / 1024;
-        let x = 0;
-        for (let i = 0; i < 1024; i++) {
-          const v = timeData[i] / 128.0;
-          const y = (v * scopeCanvas.height) / 2;
-          if (i === 0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
-          x += sliceWidth;
-        }
-      } else {
-        // Idle Flat Line
-        const midY = scopeCanvas.height / 2;
-        scopeCtx.moveTo(0, midY);
-        scopeCtx.lineTo(scopeCanvas.width, midY);
-      }
-      scopeCtx.stroke();
-      requestAnimationFrame(renderScope);
+    function setSuiteMode(mode) {
+      document.getElementById('btnModeTeensy').classList.toggle('active', mode === 'teensy');
+      document.getElementById('btnModeFaust').classList.toggle('active', mode === 'faust');
     }
 
-    // -------------------------------------------------------------------------
-    // 6. WebSerial Integration
-    // -------------------------------------------------------------------------
-    document.getElementById('btnSerial').onclick = async () => {
-      if ('serial' in navigator) {
-        try {
-          const port = await navigator.serial.requestPort();
-          await port.open({ baudRate: 115200 });
-          dotSerial.classList.add('active');
-          log('ESP32-P4 Serial Port open at 115200 baud.');
-        } catch (err) { log(`Serial Error: ${err.message}`); }
-      } else {
-        alert('WebSerial requires Chrome or Edge (enable chrome://flags#enable-web-serial-on-android on mobile).');
-      }
-    };
-
-    setTimeout(() => { resizePad(); renderScope(); }, 50);
+    setTimeout(() => { resizePad(); updateDiagnostics(); }, 60);
   </script>
 </body>
 </html>
