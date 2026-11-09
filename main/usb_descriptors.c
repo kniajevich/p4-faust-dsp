@@ -1,4 +1,21 @@
 #include "tusb.h"
+#include "class/audio/audio.h"
+
+#ifndef CFG_TUD_AUDIO
+#define CFG_TUD_AUDIO 1
+#endif
+
+#ifndef AUDIO_SUBCLASS_CONTROL
+#define AUDIO_SUBCLASS_CONTROL 0x01
+#endif
+
+#ifndef AUDIO_SUBCLASS_STREAMING
+#define AUDIO_SUBCLASS_STREAMING 0x02
+#endif
+
+#ifndef AUDIO_INT_PROTOCOL_CODE_V2
+#define AUDIO_INT_PROTOCOL_CODE_V2 0x20
+#endif
 
 #define _PID_MAP(itf, n) ((CFG_TUD_##itf) << (n))
 #define USB_PID           (0x4000 | _PID_MAP(AUDIO, 1))
