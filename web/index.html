@@ -3,85 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ESP32-P4 Faust & Teensy Audio Modular Studio</title>
+  <title>ESP32-P4 Teensy & Faust Audio Workstation</title>
   <style>
     :root {
-      --bg: #090d13;
-      --card: #131923;
-      --card-border: #222d3d;
-      --accent: #58a6ff;
-      --accent-teensy: #238636;
-      --accent-phi: #e3b341;
-      --accent-warn: #f78166;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --white-key: #f0f6fc;
-      --black-key: #1f242c;
+      --bg: #090d13; --card: #131923; --card-border: #222d3d;
+      --accent: #58a6ff; --accent-teensy: #238636; --accent-phi: #e3b341; --accent-warn: #f78166;
+      --text: #e6edf3; --text-muted: #8b949e; --white-key: #f0f6fc; --black-key: #1f242c;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      margin: 0; padding: 14px; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      user-select: none; -webkit-user-select: none;
-    }
+    body { margin: 0; padding: 14px; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; }
     .container { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
     header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; }
     h1 { font-size: 18px; margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
     .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #238636; color: #fff; font-weight: 600; }
     
-    /* Mode Switcher Banner */
-    .repo-banner {
-      background: linear-gradient(90deg, #161b22 0%, #1f293d 100%);
-      border: 1px solid #388bfd44; border-radius: 8px; padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-    }
+    .repo-banner { background: linear-gradient(90deg, #161b22 0%, #1f293d 100%); border: 1px solid #388bfd44; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
     .repo-banner a { color: #58a6ff; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-    .repo-banner a:hover { text-decoration: underline; }
-    .mode-toggle { display: inline-flex; background: #0b0f17; border-radius: 6px; padding: 3px; border: 1px solid var(--card-border); }
-    .mode-btn { background: transparent; border: none; color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-    .mode-btn.active { background: #238636; color: #fff; box-shadow: 0 0 8px rgba(35, 134, 54, 0.4); }
-
+    
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
     .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
     .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0; display: flex; justify-content: space-between; align-items: center; }
 
-    /* Visualizers Panel */
+    /* Preset Browser */
+    .category-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .tab-btn { background: #0e131b; border: 1px solid var(--card-border); color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+    .tab-btn.active { background: #21262d; border-color: var(--accent); color: #fff; }
+    .presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 150px; overflow-y: auto; }
+    @media (max-width: 600px) { .presets-grid { grid-template-columns: repeat(2, 1fr); } }
+    .preset-card { background: #0b0f17; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+    .preset-card:hover { border-color: #58a6ff; }
+    .preset-card.active { background: #1c2738; border-color: #58a6ff; box-shadow: 0 0 8px rgba(88,166,255,0.3); }
+    .preset-title { font-size: 11px; font-weight: 700; color: #fff; }
+    .preset-sub { font-size: 9px; color: var(--text-muted); }
+
+    /* Visualizers */
     .meters-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
     @media (max-width: 600px) { .meters-grid { grid-template-columns: 1fr; } }
-    .scope-box { height: 110px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; position: relative; }
-    #scopeCanvas, #fftCanvas { width: 100%; height: 100%; display: block; }
-    .tuner-box { height: 110px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    .tuner-note { font-size: 36px; font-weight: 800; color: #58a6ff; font-family: monospace; line-height: 1; }
-    .tuner-hz { font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 4px; }
-    .tuner-cents { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-top: 6px; font-family: monospace; background: #21262d; }
-    .tuner-cents.in-tune { color: #3fb950; background: #23863633; }
+    .scope-box { height: 100px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; }
+    #fftCanvas { width: 100%; height: 100%; display: block; }
+    .tuner-box { height: 100px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .tuner-note { font-size: 32px; font-weight: 800; color: #58a6ff; font-family: monospace; line-height: 1; }
+    .tuner-hz { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 3px; }
 
-    /* FX Pedals Rack */
+    /* FX Pedals */
     .fx-rack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     @media (max-width: 600px) { .fx-rack { grid-template-columns: 1fr; } }
-    .pedal { background: #0e131b; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .pedal { background: #0e131b; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
     .pedal-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
     .pedal-switch { width: 34px; height: 18px; background: #30363d; border-radius: 10px; position: relative; cursor: pointer; }
     .pedal-switch::after { content: ''; position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.2s; }
     .pedal-switch.active { background: #238636; }
     .pedal-switch.active::after { left: 18px; }
-
-    /* Knobs & Controls */
     .ctrl-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: monospace; }
     input[type=range] { flex-grow: 1; margin: 0 8px; accent-color: var(--accent); }
 
-    /* Drums Grid */
+    /* Drums */
     .drums-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     @media (max-width: 600px) { .drums-grid { grid-template-columns: repeat(3, 1fr); } }
     .btn-drum { background: #161c26; border: 1px solid #30363d; border-radius: 6px; padding: 12px 2px; text-align: center; cursor: pointer; touch-action: none; }
     .btn-drum:active { background: var(--accent-warn); color: #000; transform: scale(0.96); }
     .btn-drum span { display: block; font-weight: 700; font-size: 11px; }
     .btn-drum small { font-size: 9px; color: var(--text-muted); }
-
-    /* XY Pad */
-    .pad-container { position: relative; width: 100%; height: 210px; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); touch-action: none; overflow: hidden; cursor: crosshair; }
-    #xyCanvas { width: 100%; height: 100%; display: block; }
 
     /* Touch Piano */
     .keyboard-container { width: 100%; height: 130px; position: relative; background: #0b0f17; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
@@ -94,169 +77,184 @@
 <body>
   <div class="container">
     <header>
-      <h1>ESP32-P4 DSP Studio <span class="badge">v0.7.0</span></h1>
+      <h1>ESP32-P4 Audio Studio <span class="badge">v0.7.0</span></h1>
       <div style="font-size: 12px; font-family: monospace; color: var(--text-muted);">
-        <span id="dotAudio" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>Active
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>30+ DSP Modules
       </div>
     </header>
 
-    <!-- Link to p4-teensy-audio repository & Suite Switcher -->
+    <!-- Link to p4-teensy-audio repository -->
     <div class="repo-banner">
       <div>
-        <span style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); display: block;">Embedded C++ Port Available:</span>
+        <span style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); display: block;">Full Native C++ Port of Teensy Audio for ESP-IDF:</span>
         <a href="https://github.com/kniajevich/p4-teensy-audio" target="_blank">
           <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
-          kniajevich/p4-teensy-audio (Full ESP32-P4 Port)
+          kniajevich/p4-teensy-audio (30+ Classes, DMA, FreeRTOS)
         </a>
       </div>
-      <div class="mode-toggle">
-        <button class="mode-btn active" id="btnModeTeensy" onclick="setSuiteMode('teensy')">⚡ Teensy Audio Modular</button>
-        <button class="mode-btn" id="btnModeFaust" onclick="setSuiteMode('faust')">Faust RISC-V Engine</button>
-      </div>
     </div>
 
-    <!-- Real-time Metering: FFT1024 + YIN Pitch Tuner -->
+    <!-- Master Preset Explorer -->
     <div class="card">
-      <h2>Real-Time Diagnostics (AudioAnalyzeFFT1024 & AudioAnalyzeNoteFreq)</h2>
+      <h2>Master Preset Explorer <span id="activePatchName" style="color: #58a6ff;">Acid Bass 303</span></h2>
+      <div class="category-tabs">
+        <button class="tab-btn active" onclick="filterCategory('bass')">Bass (5)</button>
+        <button class="tab-btn" onclick="filterCategory('lead')">Leads (5)</button>
+        <button class="tab-btn" onclick="filterCategory('pad')">Pads & Ambient (5)</button>
+        <button class="tab-btn" onclick="filterCategory('pluck')">Keys & Plucks (5)</button>
+        <button class="tab-btn" onclick="filterCategory('modular')">Modular FX & Drones (5)</button>
+      </div>
+      <div class="presets-grid" id="presetContainer"></div>
+    </div>
+
+    <!-- Real-Time FFT & Pitch Tuner -->
+    <div class="card">
+      <h2>Real-Time Diagnostics (AudioAnalyzeFFT1024 & YIN Tuner)</h2>
       <div class="meters-grid">
-        <div class="scope-box">
-          <canvas id="fftCanvas"></canvas>
-        </div>
+        <div class="scope-box"><canvas id="fftCanvas"></canvas></div>
         <div class="tuner-box">
-          <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">YIN Pitch Tuner</span>
+          <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Detected Tone</span>
           <div class="tuner-note" id="tunerNote">--</div>
           <div class="tuner-hz" id="tunerHz">0.0 Hz</div>
-          <div class="tuner-cents" id="tunerCents">-- cents</div>
         </div>
       </div>
     </div>
 
-    <!-- Pro Modular FX Pedalboard -->
+    <!-- FX Rack -->
     <div class="card">
-      <h2>Teensy Audio FX Rack (AudioEffect...)</h2>
+      <h2>Teensy Modular FX Chain (AudioEffect...)</h2>
       <div class="fx-rack">
-        <!-- Bitcrusher -->
         <div class="pedal">
-          <div class="pedal-header">
-            <span>BITCRUSHER</span>
-            <div class="pedal-switch" id="swCrush" onclick="toggleFX('crush')"></div>
-          </div>
+          <div class="pedal-header"><span>BITCRUSHER</span><div class="pedal-switch" id="swCrush" onclick="toggleFX('crush')"></div></div>
           <div class="ctrl-row"><span>Bits</span><input type="range" id="crushBits" min="2" max="16" value="6" oninput="updateFX()" /></div>
         </div>
-        <!-- Overdrive / Waveshaper -->
         <div class="pedal">
-          <div class="pedal-header">
-            <span>WAVESHAPER</span>
-            <div class="pedal-switch active" id="swDrive" onclick="toggleFX('drive')"></div>
-          </div>
+          <div class="pedal-header"><span>WAVESHAPER</span><div class="pedal-switch active" id="swDrive" onclick="toggleFX('drive')"></div></div>
           <div class="ctrl-row"><span>Drive</span><input type="range" id="driveVal" min="1" max="40" value="12" oninput="updateFX()" /></div>
         </div>
-        <!-- Freeverb -->
         <div class="pedal">
-          <div class="pedal-header">
-            <span>FREEVERB</span>
-            <div class="pedal-switch active" id="swVerb" onclick="toggleFX('verb')"></div>
-          </div>
-          <div class="ctrl-row"><span>Room</span><input type="range" id="verbRoom" min="0" max="100" value="65" oninput="updateFX()" /></div>
-        </div>
-        <!-- Delay -->
-        <div class="pedal">
-          <div class="pedal-header">
-            <span>TAPE DELAY</span>
-            <div class="pedal-switch active" id="swDelay" onclick="toggleFX('delay')"></div>
-          </div>
+          <div class="pedal-header"><span>TAPE DELAY</span><div class="pedal-switch active" id="swDelay" onclick="toggleFX('delay')"></div></div>
           <div class="ctrl-row"><span>Time</span><input type="range" id="delayTime" min="10" max="800" value="240" oninput="updateFX()" /></div>
         </div>
-        <!-- Granular Freeze -->
-        <div class="pedal">
-          <div class="pedal-header">
-            <span>GRANULAR FREEZE</span>
-            <div class="pedal-switch" id="swGranular" onclick="toggleFX('granular')"></div>
-          </div>
-          <div class="ctrl-row"><span>Pitch</span><input type="range" id="granPitch" min="-12" max="12" value="0" oninput="updateFX()" /></div>
-        </div>
-        <!-- State Variable Filter Mode -->
-        <div class="pedal">
-          <div class="pedal-header">
-            <span>FILTER TYPE</span>
-            <span id="filterModeLabel" style="color: var(--accent);">LOWPASS</span>
-          </div>
-          <div class="ctrl-row">
-            <button style="flex:1; font-size:10px; background:#1b2330; color:#fff; border:1px solid #30363d; border-radius:4px; padding:4px; cursor:pointer;" onclick="cycleFilterMode()">CYCLE (LP/BP/HP)</button>
-          </div>
-        </div>
       </div>
     </div>
 
-    <!-- Analog 808 Drums -->
+    <!-- 808 Drums -->
     <div class="card">
-      <h2>AudioSynthSimpleDrum (808 Rhythm Machine)</h2>
+      <h2>AudioSynthSimpleDrum (808 Rhythm Section)</h2>
       <div class="drums-grid">
         <div class="btn-drum" onpointerdown="triggerDrum('bd')"><span>BASS DRUM</span><small>Sub 42Hz</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('sd')"><span>SNARE</span><small>Noise Core</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('sd')"><span>SNARE</span><small>Noise Burst</small></div>
         <div class="btn-drum" onpointerdown="triggerDrum('ch')"><span>CL-HAT</span><small>Metallic</small></div>
         <div class="btn-drum" onpointerdown="triggerDrum('oh')"><span>OP-HAT</span><small>Reso Sizzle</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('cp')"><span>CLAP</span><small>Burst Env</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('tm')"><span>HI-TOM</span><small>Drop Tone</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('cp')"><span>CLAP</span><small>Triple Env</small></div>
+        <div class="btn-drum" onpointerdown="triggerDrum('tm')"><span>HI-TOM</span><small>Pitch Dive</small></div>
       </div>
     </div>
 
-    <div class="grid">
-      <!-- Kaoss Modulator -->
-      <div class="card">
-        <h2>AudioFilterStateVariable Modulator (XY)</h2>
-        <div class="pad-container" id="xyPad">
-          <canvas id="xyCanvas"></canvas>
-        </div>
-      </div>
-
-      <!-- Generator Settings -->
-      <div class="card">
-        <h2>Synthesis Oscillator (AudioSynthWaveformModulated)</h2>
-        <div class="ctrl-row">
-          <span>Waveform</span>
-          <select id="selWaveform" style="background:#0b0f17; color:#fff; border:1px solid #30363d; padding:6px; border-radius:4px;">
-            <option value="sawtooth">Sawtooth (Lead)</option>
-            <option value="square">Variable Pulse / PWM</option>
-            <option value="triangle">Triangle (Warm Bass)</option>
-            <option value="karplus">Karplus-Strong (Plucked String)</option>
-            <option value="noise">Pink Noise (Perceptual)</option>
-          </select>
-        </div>
-        <div class="ctrl-row"><span>Cutoff Freq</span><input type="range" id="slCutoff" min="50" max="12000" value="1800" oninput="updateFilter()" /></div>
-        <div class="ctrl-row"><span>Resonance Q</span><input type="range" id="slRes" min="1" max="20" value="5" oninput="updateFilter()" /></div>
-        <div class="ctrl-row"><span>Master Gain</span><input type="range" id="slVol" min="0" max="100" value="80" oninput="updateMasterVol()" /></div>
-      </div>
-    </div>
-
-    <!-- Piano Keyboard -->
+    <!-- Touch Keyboard -->
     <div class="card">
-      <h2>Polyphonic Key Bed (AudioSynthWaveform)</h2>
+      <h2>Multi-Touch Key Bed (Play Current Patch)</h2>
       <div class="keyboard-container" id="keyboard"></div>
     </div>
   </div>
 
   <script>
     // -------------------------------------------------------------------------
-    // Audio Context & Complete Teensy Modular DSP Engine
+    // 25+ Comprehensive Multi-Module Presets
+    // -------------------------------------------------------------------------
+    const PRESET_LIBRARY = [
+      // BASS
+      { id: 'b1', cat: 'bass', name: 'Acid Bass 303', sub: 'Saw + Resonant LP + Overdrive', wave: 'sawtooth', fType: 'lowpass', cutoff: 950, q: 14, drive: true, driveVal: 24, delay: false, crush: false, release: 0.12 },
+      { id: 'b2', cat: 'bass', name: 'Cyberpunk Reese', sub: 'Pulse PWM + Heavy Drive', wave: 'square', fType: 'lowpass', cutoff: 1400, q: 6, drive: true, driveVal: 32, delay: false, crush: false, release: 0.35 },
+      { id: 'b3', cat: 'bass', name: 'Sub Pumper', sub: 'Pure Sine 40Hz + Smooth LP', wave: 'sine', fType: 'lowpass', cutoff: 380, q: 2, drive: false, driveVal: 1, delay: false, crush: false, release: 0.2 },
+      { id: 'b4', cat: 'bass', name: 'Bit-Crushed Slap', sub: 'Saw + 4-Bit Downsample', wave: 'sawtooth', fType: 'lowpass', cutoff: 2200, q: 8, drive: true, driveVal: 15, delay: false, crush: true, crushBits: 4, release: 0.15 },
+      { id: 'b5', cat: 'bass', name: 'Modular Moog Bass', sub: '24dB Ladder Sim + Resonance', wave: 'sawtooth', fType: 'lowpass', cutoff: 750, q: 16, drive: false, driveVal: 1, delay: false, crush: false, release: 0.25 },
+
+      // LEADS
+      { id: 'l1', cat: 'lead', name: 'Screaming Sync', sub: 'Saw + High Q Bandpass Drive', wave: 'sawtooth', fType: 'bandpass', cutoff: 2400, q: 18, drive: true, driveVal: 28, delay: true, delayTime: 220, crush: false, release: 0.2 },
+      { id: 'l2', cat: 'lead', name: 'Chiptune Hero', sub: 'Square PWM + Bitcrush 6-Bit', wave: 'square', fType: 'lowpass', cutoff: 6000, q: 3, drive: false, driveVal: 1, delay: true, delayTime: 120, crush: true, crushBits: 6, release: 0.1 },
+      { id: 'l3', cat: 'lead', name: 'Vangelis CS-80', sub: 'Warm Saw + Tape Delay', wave: 'sawtooth', fType: 'lowpass', cutoff: 3200, q: 4, drive: false, driveVal: 1, delay: true, delayTime: 340, crush: false, release: 0.45 },
+      { id: 'l4', cat: 'lead', name: 'Phi Resonant Lead', sub: 'Golden Q 0.786 + Fast Pluck', wave: 'triangle', fType: 'lowpass', cutoff: 4200, q: 9, drive: true, driveVal: 10, delay: true, delayTime: 180, crush: false, release: 0.3 },
+      { id: 'l5', cat: 'lead', name: 'Hyper Saw', sub: 'Highpass Sizzle + Distortion', wave: 'sawtooth', fType: 'highpass', cutoff: 800, q: 5, drive: true, driveVal: 22, delay: true, delayTime: 160, crush: false, release: 0.25 },
+
+      // PADS & AMBIENT
+      { id: 'p1', cat: 'pad', name: 'Blade Runner Drone', sub: 'Slow Saw + Deep Tape Echo', wave: 'sawtooth', fType: 'lowpass', cutoff: 1100, q: 3, drive: false, driveVal: 1, delay: true, delayTime: 480, crush: false, release: 1.2 },
+      { id: 'p2', cat: 'pad', name: 'Fibonacci Shimmer', sub: 'Triangle + Bandpass Echo', wave: 'triangle', fType: 'bandpass', cutoff: 1600, q: 7, drive: false, driveVal: 1, delay: true, delayTime: 377, crush: false, release: 0.9 },
+      { id: 'p3', cat: 'pad', name: 'Lo-Fi Nostalgia', sub: 'Warm Sine + 8-Bit Tape Wow', wave: 'sine', fType: 'lowpass', cutoff: 1800, q: 2, drive: true, driveVal: 8, delay: true, delayTime: 280, crush: true, crushBits: 8, release: 0.6 },
+      { id: 'p4', cat: 'pad', name: 'Nebula Space Bed', sub: 'Pink Noise Core + Slow Sweep', wave: 'noise', fType: 'bandpass', cutoff: 1200, q: 12, drive: false, driveVal: 1, delay: true, delayTime: 550, crush: false, release: 1.5 },
+      { id: 'p5', cat: 'pad', name: 'Sub-Zero Freeze', sub: 'Square + Freeverb Room', wave: 'square', fType: 'lowpass', cutoff: 850, q: 4, drive: false, driveVal: 1, delay: true, delayTime: 420, crush: false, release: 1.0 },
+
+      // KEYS & PLUCKS
+      { id: 'k1', cat: 'pluck', name: 'Karplus Acoustic Guitar', sub: 'Physical Plucked Model', wave: 'karplus', fType: 'lowpass', cutoff: 8000, q: 2, drive: false, driveVal: 1, delay: false, crush: false, release: 1.2 },
+      { id: 'k2', cat: 'pluck', name: 'DX7 Electric Piano', sub: 'Bell Tone + Transient Ping', wave: 'triangle', fType: 'lowpass', cutoff: 3500, q: 5, drive: false, driveVal: 1, delay: true, delayTime: 180, crush: false, release: 0.4 },
+      { id: 'k3', cat: 'pluck', name: 'Pizzicato Strings', sub: 'Short Decay + Clean Bandpass', wave: 'sawtooth', fType: 'bandpass', cutoff: 2200, q: 6, drive: false, driveVal: 1, delay: false, crush: false, release: 0.08 },
+      { id: 'k4', cat: 'pluck', name: 'Toybox Kalimba', sub: 'Sine Ping + Subtle Dirt', wave: 'sine', fType: 'lowpass', cutoff: 4800, q: 8, drive: true, driveVal: 5, delay: true, delayTime: 240, crush: false, release: 0.5 },
+      { id: 'k5', cat: 'pluck', name: 'Eurorack Clock Pluck', sub: 'Impulse Click + High Resonance', wave: 'square', fType: 'bandpass', cutoff: 1900, q: 19, drive: false, driveVal: 1, delay: true, delayTime: 140, crush: false, release: 0.06 },
+
+      // MODULAR FX & DRONES
+      { id: 'm1', cat: 'modular', name: 'Alien Transmission', sub: 'Pink Noise + Peak Modulation', wave: 'noise', fType: 'bandpass', cutoff: 2800, q: 22, drive: true, driveVal: 35, delay: true, delayTime: 310, crush: true, crushBits: 5, release: 0.8 },
+      { id: 'm2', cat: 'modular', name: 'Industrial Smasher', sub: 'Square + Max Drive + 3-Bit', wave: 'square', fType: 'lowpass', cutoff: 3000, q: 10, drive: true, driveVal: 40, delay: false, crush: true, crushBits: 3, release: 0.2 },
+      { id: 'm3', cat: 'modular', name: 'Sonar Ping', sub: 'Pure Sine 1.2kHz + Long Echo', wave: 'sine', fType: 'bandpass', cutoff: 1200, q: 25, drive: false, driveVal: 1, delay: true, delayTime: 620, crush: false, release: 0.7 },
+      { id: 'm4', cat: 'modular', name: 'S&H Randomizer Sim', sub: 'Noise Glitch + Tape Echo', wave: 'noise', fType: 'lowpass', cutoff: 1600, q: 8, drive: true, driveVal: 18, delay: true, delayTime: 190, crush: true, crushBits: 7, release: 0.3 },
+      { id: 'm5', cat: 'modular', name: 'Dark Void Drone', sub: 'Triangle 35Hz + Saturated Echo', wave: 'triangle', fType: 'lowpass', cutoff: 450, q: 7, drive: true, driveVal: 20, delay: true, delayTime: 400, crush: false, release: 1.8 }
+    ];
+
+    let activePatch = PRESET_LIBRARY[0];
+    let currentCategory = 'bass';
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.innerText.toLowerCase().startsWith(cat)));
+      renderPresets();
+    }
+
+    function renderPresets() {
+      const container = document.getElementById('presetContainer');
+      container.innerHTML = '';
+      PRESET_LIBRARY.filter(p => p.cat === currentCategory).forEach(p => {
+        const card = document.createElement('div');
+        card.className = `preset-card ${p.id === activePatch.id ? 'active' : ''}`;
+        card.onclick = () => loadPatch(p);
+        card.innerHTML = `<span class="preset-title">${p.name}</span><span class="preset-sub">${p.sub}</span>`;
+        container.appendChild(card);
+      });
+    }
+
+    function loadPatch(p) {
+      activePatch = p;
+      document.getElementById('activePatchName').innerText = p.name;
+      renderPresets();
+
+      // Apply patch parameters to modular DSP engine
+      initDSP();
+      mainFilter.type = p.fType;
+      mainFilter.frequency.setTargetAtTime(p.cutoff, actx.currentTime, 0.02);
+      mainFilter.Q.setTargetAtTime(p.q, actx.currentTime, 0.02);
+
+      fxState.drive = p.drive;
+      document.getElementById('swDrive').classList.toggle('active', p.drive);
+      document.getElementById('driveVal').value = p.driveVal;
+
+      fxState.delay = p.delay;
+      document.getElementById('swDelay').classList.toggle('active', p.delay);
+      if (p.delayTime) document.getElementById('delayTime').value = p.delayTime;
+
+      fxState.crush = p.crush;
+      document.getElementById('swCrush').classList.toggle('active', p.crush);
+      if (p.crushBits) document.getElementById('crushBits').value = p.crushBits;
+
+      updateFX();
+    }
+
+    // -------------------------------------------------------------------------
+    // Core Modular DSP Audio Graph
     // -------------------------------------------------------------------------
     let actx = null;
-    let masterOut = null;
-    let mainFilter = null;
-    let delayUnit = null, delayGain = null;
-    let shaperNode = null;
-    let analyserNode = null;
-    let filterModeIndex = 0; // 0: lowpass, 1: bandpass, 2: highpass
-    const filterModes = ['lowpass', 'bandpass', 'highpass'];
+    let masterOut = null, mainFilter = null;
+    let delayUnit = null, delayGain = null, shaperNode = null, analyserNode = null;
     const activeVoices = new Map();
-
-    const fxState = {
-      crush: false,
-      drive: true,
-      verb: true,
-      delay: true,
-      granular: false
-    };
+    const fxState = { crush: false, drive: true, delay: false };
 
     function makeDistortionCurve(amount = 20) {
       const n_samples = 44100;
@@ -283,26 +281,21 @@
       masterOut = actx.createGain();
       masterOut.gain.value = 0.8;
 
-      // Filter (StateVariable)
       mainFilter = actx.createBiquadFilter();
       mainFilter.type = 'lowpass';
-      mainFilter.frequency.value = 1800;
-      mainFilter.Q.value = 4;
+      mainFilter.frequency.value = 950;
+      mainFilter.Q.value = 14;
 
-      // Overdrive Waveshaper
       shaperNode = actx.createWaveShaper();
-      shaperNode.curve = makeDistortionCurve(12);
-      shaperNode.oversample = '2x';
+      shaperNode.curve = makeDistortionCurve(24);
 
-      // Delay
       delayUnit = actx.createDelay(1.0);
       delayUnit.delayTime.value = 0.24;
       delayGain = actx.createGain();
-      delayGain.gain.value = 0.45;
+      delayGain.gain.value = 0.0;
       delayUnit.connect(delayGain);
       delayGain.connect(delayUnit);
 
-      // Signal routing graph
       mainFilter.connect(shaperNode);
       shaperNode.connect(masterOut);
       shaperNode.connect(delayUnit);
@@ -320,7 +313,6 @@
 
     function updateFX() {
       initDSP();
-      if (!shaperNode) return;
       if (fxState.drive) {
         const dVal = parseInt(document.getElementById('driveVal').value);
         shaperNode.curve = makeDistortionCurve(dVal);
@@ -334,65 +326,37 @@
       }
     }
 
-    function cycleFilterMode() {
-      initDSP();
-      filterModeIndex = (filterModeIndex + 1) % filterModes.length;
-      mainFilter.type = filterModes[filterModeIndex];
-      document.getElementById('filterModeLabel').innerText = filterModes[filterModeIndex].toUpperCase();
-    }
-
-    function updateFilter() {
-      initDSP();
-      if (!mainFilter) return;
-      const f = parseFloat(document.getElementById('slCutoff').value);
-      const q = parseFloat(document.getElementById('slRes').value);
-      mainFilter.frequency.setTargetAtTime(f, actx.currentTime, 0.02);
-      mainFilter.Q.setTargetAtTime(q, actx.currentTime, 0.02);
-    }
-
-    function updateMasterVol() {
-      initDSP();
-      const v = parseInt(document.getElementById('slVol').value) / 100.0;
-      masterOut.gain.setTargetAtTime(v, actx.currentTime, 0.02);
-    }
-
-    // -------------------------------------------------------------------------
-    // AudioSynthWaveform & Karplus-Strong Pluck Generation
-    // -------------------------------------------------------------------------
     function playNote(midi) {
       initDSP();
       if (activeVoices.has(midi)) stopNote(midi);
       const now = actx.currentTime;
       const freq = 440 * Math.pow(2, (midi - 69) / 12);
-      const waveType = document.getElementById('selWaveform').value;
-
-      let osc;
+      const wave = activePatch.wave;
       const vGain = actx.createGain();
+      let osc;
 
-      if (waveType === 'karplus') {
-        // Physical Plucked String Model
-        const burstDuration = 1.0 / freq;
-        const noiseBuf = actx.createBuffer(1, actx.sampleRate * burstDuration, actx.sampleRate);
-        const data = noiseBuf.getChannelData(0);
-        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-        osc = actx.createBufferSource();
-        osc.buffer = noiseBuf;
-        vGain.gain.setValueAtTime(0.8, now);
-        vGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-      } else if (waveType === 'noise') {
-        const buf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+      if (wave === 'karplus') {
+        const burst = 1.0 / freq;
+        const buf = actx.createBuffer(1, actx.sampleRate * burst, actx.sampleRate);
         const d = buf.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         osc = actx.createBufferSource();
         osc.buffer = buf;
-        osc.loop = true;
-        vGain.gain.setValueAtTime(0.4, now);
+        vGain.gain.setValueAtTime(0.8, now);
+        vGain.gain.exponentialRampToValueAtTime(0.001, now + activePatch.release);
+      } else if (wave === 'noise') {
+        const buf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        osc = actx.createBufferSource();
+        osc.buffer = buf; osc.loop = true;
+        vGain.gain.setValueAtTime(0.5, now);
       } else {
         osc = actx.createOscillator();
-        osc.type = waveType;
+        osc.type = wave;
         osc.frequency.setValueAtTime(freq, now);
         vGain.gain.setValueAtTime(0.001, now);
-        vGain.gain.exponentialRampToValueAtTime(0.3, now + 0.015);
+        vGain.gain.exponentialRampToValueAtTime(0.35, now + 0.015);
       }
 
       osc.connect(vGain);
@@ -407,15 +371,15 @@
       const now = actx.currentTime;
       vGain.gain.cancelScheduledValues(now);
       vGain.gain.setValueAtTime(vGain.gain.value, now);
-      vGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+      vGain.gain.exponentialRampToValueAtTime(0.0001, now + (activePatch.release || 0.15));
       setTimeout(() => {
         try { osc.stop(); osc.disconnect(); vGain.disconnect(); } catch(e) {}
-      }, 160);
+      }, ((activePatch.release || 0.15) * 1000) + 50);
       activeVoices.delete(midi);
     }
 
     // -------------------------------------------------------------------------
-    // AudioSynthSimpleDrum (808 Analog Percussion)
+    // Drums Trigger
     // -------------------------------------------------------------------------
     function triggerDrum(t) {
       initDSP();
@@ -456,7 +420,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // AudioAnalyzeFFT1024 & YIN Chromatic Pitch Detector
+    // Diagnostics & Meters (FFT & Pitch)
     // -------------------------------------------------------------------------
     const fftCanvas = document.getElementById('fftCanvas');
     const fftCtx = fftCanvas.getContext('2d');
@@ -471,7 +435,6 @@
       fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
 
       if (analyserNode) {
-        // 1. AudioAnalyzeFFT1024 Spectrum Bars
         analyserNode.getByteFrequencyData(freqData);
         const barWidth = (fftCanvas.width / 128);
         for (let i = 0; i < 128; i++) {
@@ -480,7 +443,6 @@
           fftCtx.fillRect(i * barWidth, fftCanvas.height - barHeight, barWidth - 1, barHeight);
         }
 
-        // 2. AudioAnalyzeNoteFreq (Autocorrelation Pitch Tracker)
         analyserNode.getFloatTimeDomainData(timeBuffer);
         let rms = 0;
         for (let i = 0; i < 1024; i++) rms += timeBuffer[i] * timeBuffer[i];
@@ -499,14 +461,8 @@
             const midiNum = Math.round(12 * (Math.log2(fundFreq / 440)) + 69);
             const noteName = noteStrings[((midiNum % 12) + 12) % 12];
             const oct = Math.floor(midiNum / 12) - 1;
-            const expectedHz = 440 * Math.pow(2, (midiNum - 69) / 12);
-            const cents = Math.round(1200 * Math.log2(fundFreq / expectedHz));
-
             document.getElementById('tunerNote').innerText = `${noteName}${oct}`;
             document.getElementById('tunerHz').innerText = `${fundFreq.toFixed(1)} Hz`;
-            const cEl = document.getElementById('tunerCents');
-            cEl.innerText = `${cents > 0 ? '+' : ''}${cents} cents`;
-            cEl.className = `tuner-cents ${Math.abs(cents) <= 6 ? 'in-tune' : ''}`;
           }
         }
       }
@@ -514,44 +470,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Kaoss XY Modulator
-    // -------------------------------------------------------------------------
-    const xyPad = document.getElementById('xyPad');
-    const xyCanvas = document.getElementById('xyCanvas');
-    const xyCtx = xyCanvas.getContext('2d');
-    let padX = 64, padY = 64;
-
-    function resizePad() {
-      xyCanvas.width = xyPad.clientWidth; xyCanvas.height = xyPad.clientHeight;
-      xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
-      xyCtx.strokeStyle = '#1b2333';
-      xyCtx.beginPath();
-      xyCtx.arc((padX / 127) * xyCanvas.width, (1 - padY / 127) * xyCanvas.height, 8, 0, Math.PI * 2);
-      xyCtx.fillStyle = '#58a6ff'; xyCtx.fill();
-    }
-    window.addEventListener('resize', resizePad);
-
-    function handlePointer(e) {
-      const r = xyPad.getBoundingClientRect();
-      const cx = e.touches ? e.touches[0].clientX : e.clientX;
-      const cy = e.touches ? e.touches[0].clientY : e.clientY;
-      padX = Math.round(Math.max(0, Math.min(1, (cx - r.left) / r.width)) * 127);
-      padY = Math.round(Math.max(0, Math.min(1, 1 - (cy - r.top) / r.height)) * 127);
-      resizePad();
-      const f = 50 * Math.pow(12000 / 50, padX / 127);
-      const q = 1 + (padY / 127) * 19;
-      document.getElementById('slCutoff').value = Math.round(f);
-      document.getElementById('slRes').value = Math.round(q);
-      updateFilter();
-    }
-
-    let isDown = false;
-    xyPad.addEventListener('pointerdown', e => { isDown = true; handlePointer(e); });
-    window.addEventListener('pointermove', e => { if (isDown) handlePointer(e); });
-    window.addEventListener('pointerup', () => isDown = false);
-
-    // -------------------------------------------------------------------------
-    // Touch Keyboard Elements
+    // Keyboard Initialization
     // -------------------------------------------------------------------------
     const kb = document.getElementById('keyboard');
     const keyDefs = [
@@ -577,12 +496,8 @@
       kb.appendChild(el);
     });
 
-    function setSuiteMode(mode) {
-      document.getElementById('btnModeTeensy').classList.toggle('active', mode === 'teensy');
-      document.getElementById('btnModeFaust').classList.toggle('active', mode === 'faust');
-    }
-
-    setTimeout(() => { resizePad(); updateDiagnostics(); }, 60);
+    renderPresets();
+    setTimeout(() => updateDiagnostics(), 60);
   </script>
 </body>
 </html>
