@@ -1,0 +1,26 @@
+name: ESP32-P4 Faust DSP CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Faust RISC-V Binary
+    runs-on: ubuntu-22.04
+    container:
+      image: espressif/idf:release-v5.3
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Compile ESP32-P4 Faust DSP Engine
+        shell: bash
+        run: |
+          git config --global --add safe.directory '*'
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32p4
+          idf.py build
