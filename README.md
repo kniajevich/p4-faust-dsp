@@ -1,6 +1,7 @@
 # p4-faust-dsp: Unified Faust DSP, UAC2 & SIMD Platform for ESP32-P4
 
 [![ESP32-P4 Faust DSP CI](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml/badge.svg)](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/kniajevich/p4-faust-dsp?color=blue)](https://github.com/kniajevich/p4-faust-dsp/releases/latest)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![Target: ESP32-P4](https://img.shields.io/badge/Target-ESP32--P4-red.svg)
 ![Architecture: RISC--V](https://img.shields.io/badge/Architecture-RISC--V%20SIMD-orange.svg)
@@ -45,6 +46,18 @@ USB <====>| TinyUSB UAC2 High |<======>| Phi RingBuffer Queue    |  |
 * **Golden Ratio ($\\phi \\approx 1.618$) Dynamics:**
   * Filter damping: Non-modal $Q = 1 / \\sqrt{\\phi} \\approx 0.7861$.
   * Asymmetric queue watermarks: $38.2\\%$ and $61.8\\%$ preventing buffer oscillation.
+
+---
+
+## Default Hardware Pinout (ESP32-P4)
+
+| Signal | ESP32-P4 GPIO | Description |
+| :--- | :--- | :--- |
+| **TDM BCLK** | GPIO 12 | Bit Clock (Bit Rate = 48000 * 8 * 32) |
+| **TDM WS / FS** | GPIO 13 | Frame Sync (Word Select) |
+| **TDM DOUT** | GPIO 11 | Serial Audio Data Output (8 Time Slots to DAC) |
+| **TDM DIN** | GPIO 10 | Serial Audio Data Input (8 Time Slots from ADC) |
+| **USB D+ / D-** | On-chip HS PHY | Direct connection to USB-C port |
 
 ---
 
