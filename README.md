@@ -1,8 +1,9 @@
 # p4-faust-dsp: Unified Faust DSP, UAC2 & SIMD Platform for ESP32-P4
 
 [![ESP32-P4 Faust DSP CI](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml/badge.svg)](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/build.yml)
+[![Deploy GitHub Pages Web Console](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/pages.yml/badge.svg)](https://github.com/kniajevich/p4-faust-dsp/actions/workflows/pages.yml)
 [![Release](https://img.shields.io/github/v/release/kniajevich/p4-faust-dsp?color=blue)](https://github.com/kniajevich/p4-faust-dsp/releases/latest)
-[![Web Console](https://img.shields.io/badge/Web%20Console-GitHub%20Pages-brightgreen.svg)](https://kniajevich.github.io/p4-faust-dsp/)
+[![Web Studio](https://img.shields.io/badge/Live%20Studio-GitHub%20Pages-brightgreen.svg)](https://kniajevich.github.io/p4-faust-dsp/)
 ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
 ![Target: ESP32-P4](https://img.shields.io/badge/Target-ESP32--P4-red.svg)
 ![Architecture: RISC--V](https://img.shields.io/badge/Architecture-RISC--V%20SIMD-orange.svg)
@@ -11,11 +12,15 @@ An all-in-one embedded audio processing platform combining **Faust & Pure Data r
 
 ---
 
-## Live Web Console & Flasher
+## 🎛️ Live Web Studio & Controller
 
-Access the browser-based control surface and flasher directly at:  
-👉 **[https://kniajevich.github.io/p4-faust-dsp/](https://kniajevich.github.io/p4-faust-dsp/)**  
-*(Requires Chrome or Edge for WebSerial flashing and Web-MIDI parameter control)*.
+Direct browser control with zero software installation:  
+👉 **[https://kniajevich.github.io/p4-faust-dsp/](https://kniajevich.github.io/p4-faust-dsp/)**
+
+* **Touch XY-Pad (Kaoss Style):** Real-time dual-axis parameter modulation (Cutoff CC 74 + Resonance CC 71).
+* **Polyphonic Touch Keyboard:** 17-key touch surface sending Note On/Off with velocity.
+* **Real-Time Oscilloscope:** 60 FPS HTML5 Canvas waveform visualizer.
+* **WebSerial Flasher:** Direct firmware flashing via Chrome or Edge.
 
 ---
 
@@ -52,21 +57,11 @@ USB <====>| TinyUSB UAC2 &    |<======>| Phi RingBuffer Queue    |  |
 
 ---
 
-## Eurorack Hardware Modular Integration
+## Hardware Modular Integration & Manufacturing
 
-* Complete schematic and PCB design guide: [hardware/eurorack_shield_spec.md](hardware/eurorack_shield_spec.md)
-* Direct hardware bring-up and flashing steps: [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)
-
----
-
-## Included Faust DSP Presets
-
-| Preset File | Description | Controls |
-| :--- | :--- | :--- |
-| `dsp/phi_synth.dsp` | Polyphonic dual-oscillator synthesizer with anti-standing filter | Pitch, Cutoff (CC 74), Resonance (CC 71) |
-| `dsp/phi_wavetable.dsp` | Dual morphing wavetable synth with $\phi$-overtone balance | Morph (CC 1), Cutoff (CC 74), Gain (CC 7) |
-| `dsp/phi_compressor.dsp` | Golden ratio stereo dynamics mastering compressor | Threshold (CC 70), Ratio (CC 71), Gain (CC 7) |
-| `dsp/fibonacci_fdn.dsp` | 8-channel spatial Feedback Delay Network reverb | Feedback (CC 1), Damping (CC 74) |
+* **Complete Bill of Materials (BOM):** [hardware/BOM.md](hardware/BOM.md) with LCSC & Mouser part numbers.
+* **Eurorack 3U Shield Electrical Spec:** [hardware/eurorack_shield_spec.md](hardware/eurorack_shield_spec.md).
+* **Flashing & Hardware Bring-Up:** [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md).
 
 ---
 

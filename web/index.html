@@ -2,99 +2,320 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESP32-P4 Faust DSP Control & Flasher</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ESP32-P4 Faust DSP Studio</title>
   <style>
-    :root { --bg: #0d1117; --card: #161b22; --accent: #58a6ff; --text: #c9d1d9; --border: #30363d; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
-    .container { max-width: 800px; margin: 0 auto; }
-    h1 { color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 12px; font-size: 24px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
-    .btn { background: #238636; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .btn:hover { background: #2ea043; }
-    .slider-row { display: flex; align-items: center; justify-content: space-between; margin: 16px 0; }
-    input[type=range] { flex-grow: 1; margin: 0 16px; accent-color: var(--accent); }
-    .status { font-family: monospace; font-size: 13px; color: #8b949e; }
+    :root {
+      --bg: #090d13;
+      --card: #131923;
+      --card-border: #222d3d;
+      --accent: #58a6ff;
+      --accent-glow: rgba(88, 166, 255, 0.35);
+      --accent-phi: #e3b341;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --white-key: #f0f6fc;
+      --black-key: #1f242c;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
+    .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; }
+    h1 { font-size: 20px; margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #238636; color: #fff; font-weight: 600; }
+    .status-bar { display: flex; gap: 12px; font-size: 12px; font-family: monospace; color: var(--text-muted); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #da3633; margin-right: 4px; }
+    .status-dot.active { background: #2ea043; box-shadow: 0 0 6px #2ea043; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0; }
+    
+    /* Touch XY-Pad */
+    .pad-container { position: relative; width: 100%; height: 260px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); touch-action: none; overflow: hidden; cursor: crosshair; }
+    #xyCanvas { width: 100%; height: 100%; display: block; }
+    .pad-overlay { position: absolute; pointer-events: none; bottom: 8px; left: 8px; font-family: monospace; font-size: 11px; color: var(--text-muted); }
+    
+    /* Visualizer */
+    .visualizer-container { width: 100%; height: 120px; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; }
+    #scopeCanvas { width: 100%; height: 100%; display: block; }
+
+    /* Sliders */
+    .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-family: monospace; }
+    input[type=range] { flex-grow: 1; margin: 0 12px; accent-color: var(--accent); }
+
+    /* Touch Piano Keyboard */
+    .keyboard-container { width: 100%; height: 150px; position: relative; background: #0b0f17; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
+    .white-key { flex: 1; height: 100%; background: var(--white-key); border-right: 1px solid #c9d1d9; border-radius: 0 0 4px 4px; position: relative; z-index: 1; cursor: pointer; }
+    .white-key.active { background: #79c0ff; }
+    .black-key { position: absolute; width: 6%; height: 60%; background: var(--black-key); z-index: 2; border-radius: 0 0 3px 3px; cursor: pointer; border: 1px solid #000; }
+    .black-key.active { background: #1f6feb; }
+
+    /* Preset Buttons */
+    .preset-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .btn-preset { background: #1a2230; color: var(--text); border: 1px solid var(--card-border); padding: 8px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn-preset.active { background: #238636; border-color: #2ea043; color: #fff; }
+    
+    /* Serial Flasher */
+    .btn-action { background: #238636; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-action:hover { background: #2ea043; }
+    .serial-log { background: #0b0f17; color: #7ee787; font-family: monospace; font-size: 11px; padding: 8px; border-radius: 6px; height: 65px; overflow-y: auto; border: 1px solid var(--card-border); }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>ESP32-P4 Faust DSP Platform Control</h1>
+    <header>
+      <h1>ESP32-P4 Faust Studio <span class="badge">v0.6.0</span></h1>
+      <div class="status-bar">
+        <div><span id="dotMidi" class="status-dot"></span>MIDI</div>
+        <div><span id="dotSerial" class="status-dot"></span>Serial</div>
+      </div>
+    </header>
 
+    <!-- Real-Time Scope & Preset Selector -->
     <div class="card">
-      <h3>1. One-Click Firmware Flasher (WebSerial)</h3>
-      <p>Connect your ESP32-P4 via USB-C to flash the latest build directly from the browser.</p>
-      <button class="btn" id="btnConnectSerial">Connect & Flash ESP32-P4</button>
-      <p class="status" id="serialStatus">Serial Status: Disconnected</p>
+      <div class="preset-bar">
+        <button class="btn-preset active" onclick="selectPreset(0, 'Phi Resonant Synth')">Phi Synth</button>
+        <button class="btn-preset" onclick="selectPreset(1, 'Wavetable Morph')">Wavetable</button>
+        <button class="btn-preset" onclick="selectPreset(2, 'Golden Compressor')">Compressor</button>
+        <button class="btn-preset" onclick="selectPreset(3, 'Fibonacci FDN')">FDN Reverb</button>
+      </div>
+      <div class="visualizer-container">
+        <canvas id="scopeCanvas"></canvas>
+      </div>
     </div>
 
+    <div class="grid">
+      <!-- Kaoss Touch XY Pad -->
+      <div class="card">
+        <h2>Touch Dynamic Modulator (Kaoss XY)</h2>
+        <div class="pad-container" id="xyPad">
+          <canvas id="xyCanvas"></canvas>
+          <div class="pad-overlay" id="xyCoords">Cutoff (X): 64 | Res Q (Y): 64</div>
+        </div>
+      </div>
+
+      <!-- Sliders & Flasher -->
+      <div class="card">
+        <h2>Hardware Parameters</h2>
+        <div class="slider-row">
+          <span>Cutoff (CC 74)</span>
+          <input type="range" id="slCutoff" min="0" max="127" value="64" oninput="onSliderChange(74, this.value)" />
+          <span id="valCutoff">64</span>
+        </div>
+        <div class="slider-row">
+          <span>Resonance (CC 71)</span>
+          <input type="range" id="slRes" min="0" max="127" value="50" oninput="onSliderChange(71, this.value)" />
+          <span id="valRes">50</span>
+        </div>
+        <div class="slider-row">
+          <span>Master Volume (CC 7)</span>
+          <input type="range" id="slVol" min="0" max="127" value="90" oninput="onSliderChange(7, this.value)" />
+          <span id="valVol">90</span>
+        </div>
+
+        <h2 style="margin-top: 10px;">WebSerial Flasher</h2>
+        <button class="btn-action" id="btnSerial">Connect & Flash Firmware</button>
+        <div class="serial-log" id="serialLog">[Ready] Connect ESP32-P4 via USB-C...</div>
+      </div>
+    </div>
+
+    <!-- Polyphonic Touch Synthesizer Keyboard -->
     <div class="card">
-      <h3>2. Real-Time Web-MIDI Controller</h3>
-      <p>Modulate Faust DSP synth parameters over native High-Speed USB-MIDI.</p>
-
-      <div class="slider-row">
-        <label>Filter Cutoff (CC 74):</label>
-        <input type="range" id="sliderCutoff" min="0" max="127" value="64" />
-        <span id="valCutoff">64</span>
-      </div>
-
-      <div class="slider-row">
-        <label>Golden Q Resonance (CC 71):</label>
-        <input type="range" id="sliderRes" min="0" max="127" value="50" />
-        <span id="valRes">50</span>
-      </div>
-
-      <div class="slider-row">
-        <label>Master Volume (CC 7):</label>
-        <input type="range" id="sliderVol" min="0" max="127" value="90" />
-        <span id="valVol">90</span>
-      </div>
-      <p class="status" id="midiStatus">MIDI Status: Initializing...</p>
+      <h2>Multi-Touch Synthesizer (C3 - E4)</h2>
+      <div class="keyboard-container" id="keyboard"></div>
     </div>
   </div>
 
   <script>
-    let midiOutput = null;
+    // MIDI State & Output Management
+    let midiOut = null;
+    const dotMidi = document.getElementById('dotMidi');
+    const dotSerial = document.getElementById('dotSerial');
+    const logEl = document.getElementById('serialLog');
+
+    function log(msg) {
+      logEl.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
     if (navigator.requestMIDIAccess) {
-      navigator.requestMIDIAccess().then((access) => {
-        const outputs = Array.from(access.outputs.values());
-        if (outputs.length > 0) {
-          midiOutput = outputs[0];
-          document.getElementById('midiStatus').innerText = `MIDI Connected: ${midiOutput.name}`;
-        } else {
-          document.getElementById('midiStatus').innerText = 'No MIDI outputs detected.';
+      navigator.requestMIDIAccess().then(access => {
+        function updateOutputs() {
+          const outputs = Array.from(access.outputs.values());
+          if (outputs.length > 0) {
+            midiOut = outputs[0];
+            dotMidi.classList.add('active');
+            log(`Connected MIDI: ${midiOut.name}`);
+          } else {
+            midiOut = null;
+            dotMidi.classList.remove('active');
+          }
         }
-      });
+        updateOutputs();
+        access.onstatechange = updateOutputs;
+      }).catch(() => log('MIDI access denied or unavailable.'));
     }
 
-    function sendCC(cc, val) {
-      if (midiOutput) midiOutput.send([0xB0, cc, val]);
+    function sendMIDI(bytes) {
+      if (midiOut) midiOut.send(bytes);
+      triggerScopeFlash();
     }
 
-    document.getElementById('sliderCutoff').oninput = (e) => {
-      document.getElementById('valCutoff').innerText = e.target.value;
-      sendCC(74, parseInt(e.target.value));
-    };
-    document.getElementById('sliderRes').oninput = (e) => {
-      document.getElementById('valRes').innerText = e.target.value;
-      sendCC(71, parseInt(e.target.value));
-    };
-    document.getElementById('sliderVol').oninput = (e) => {
-      document.getElementById('valVol').innerText = e.target.value;
-      sendCC(7, parseInt(e.target.value));
-    };
+    function onSliderChange(cc, val) {
+      sendMIDI([0xB0, cc, parseInt(val)]);
+      if (cc === 74) document.getElementById('valCutoff').innerText = val;
+      if (cc === 71) document.getElementById('valRes').innerText = val;
+      if (cc === 7) document.getElementById('valVol').innerText = val;
+    }
 
-    document.getElementById('btnConnectSerial').onclick = async () => {
+    function selectPreset(prog, name) {
+      document.querySelectorAll('.btn-preset').forEach((b, i) => b.classList.toggle('active', i === prog));
+      sendMIDI([0xC0, prog]);
+      log(`Loaded DSP Preset: ${name}`);
+    }
+
+    // XY Pad Controller
+    const xyPad = document.getElementById('xyPad');
+    const xyCanvas = document.getElementById('xyCanvas');
+    const xyCoords = document.getElementById('xyCoords');
+    const xyCtx = xyCanvas.getContext('2d');
+    let padX = 64, padY = 64;
+
+    function resizePad() {
+      xyCanvas.width = xyPad.clientWidth;
+      xyCanvas.height = xyPad.clientHeight;
+      drawXYPad();
+    }
+    window.addEventListener('resize', resizePad);
+
+    function drawXYPad() {
+      xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
+      // Grid Lines
+      xyCtx.strokeStyle = '#1a2333';
+      xyCtx.lineWidth = 1;
+      xyCtx.beginPath();
+      xyCtx.moveTo(xyCanvas.width * 0.618, 0); xyCtx.lineTo(xyCanvas.width * 0.618, xyCanvas.height);
+      xyCtx.moveTo(0, xyCanvas.height * 0.382); xyCtx.lineTo(xyCanvas.width, xyCanvas.height * 0.382);
+      xyCtx.stroke();
+
+      // Target Crosshair
+      const px = (padX / 127) * xyCanvas.width;
+      const py = (1 - (padY / 127)) * xyCanvas.height;
+      xyCtx.fillStyle = '#58a6ff';
+      xyCtx.shadowColor = '#58a6ff';
+      xyCtx.shadowBlur = 12;
+      xyCtx.beginPath();
+      xyCtx.arc(px, py, 9, 0, Math.PI * 2);
+      xyCtx.fill();
+      xyCtx.shadowBlur = 0;
+    }
+
+    function handlePointerXY(e) {
+      const rect = xyPad.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const xNorm = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const yNorm = Math.max(0, Math.min(1, 1 - ((clientY - rect.top) / rect.height)));
+      padX = Math.round(xNorm * 127);
+      padY = Math.round(yNorm * 127);
+      drawXYPad();
+      xyCoords.innerText = `Cutoff (X): ${padX} | Res Q (Y): ${padY}`;
+      onSliderChange(74, padX);
+      onSliderChange(71, padY);
+      document.getElementById('slCutoff').value = padX;
+      document.getElementById('slRes').value = padY;
+    }
+
+    let isPointerDown = false;
+    xyPad.addEventListener('pointerdown', e => { isPointerDown = true; handlePointerXY(e); });
+    window.addEventListener('pointermove', e => { if (isPointerDown) handlePointerXY(e); });
+    window.addEventListener('pointerup', () => isPointerDown = false);
+
+    // Virtual Polyphonic Keyboard (17 Notes: C3 to E4)
+    const keyboard = document.getElementById('keyboard');
+    const notes = [
+      { n: 48, b: false }, { n: 49, b: true, left: 7.2 },
+      { n: 50, b: false }, { n: 51, b: true, left: 17.5 },
+      { n: 52, b: false },
+      { n: 53, b: false }, { n: 54, b: true, left: 38.0 },
+      { n: 55, b: false }, { n: 56, b: true, left: 48.2 },
+      { n: 57, b: false }, { n: 58, b: true, left: 58.5 },
+      { n: 59, b: false },
+      { n: 60, b: false }, { n: 61, b: true, left: 78.8 },
+      { n: 62, b: false }, { n: 63, b: true, left: 89.0 },
+      { n: 64, b: false }
+    ];
+
+    notes.forEach(key => {
+      const el = document.createElement('div');
+      if (!key.b) {
+        el.className = 'white-key';
+      } else {
+        el.className = 'black-key';
+        el.style.left = `${key.left}%`;
+      }
+      el.dataset.note = key.n;
+      const triggerNote = (active) => {
+        el.classList.toggle('active', active);
+        sendMIDI([active ? 0x90 : 0x80, key.n, active ? 100 : 0]);
+      };
+      el.addEventListener('pointerdown', e => { e.preventDefault(); triggerNote(true); });
+      el.addEventListener('pointerup', () => triggerNote(false));
+      el.addEventListener('pointerleave', () => triggerNote(false));
+      keyboard.appendChild(el);
+    });
+
+    // Visualizer Oscilloscope Animation
+    const scopeCanvas = document.getElementById('scopeCanvas');
+    const scopeCtx = scopeCanvas.getContext('2d');
+    let scopePhase = 0;
+    let flashIntensity = 0;
+
+    function triggerScopeFlash() { flashIntensity = 1.0; }
+
+    function renderScope() {
+      scopeCanvas.width = scopeCanvas.clientWidth;
+      scopeCanvas.height = scopeCanvas.clientHeight;
+      scopeCtx.fillStyle = '#0b0f17';
+      scopeCtx.fillRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+
+      scopeCtx.lineWidth = 2;
+      scopeCtx.strokeStyle = flashIntensity > 0.05 ? '#e3b341' : '#58a6ff';
+      if (flashIntensity > 0.05) flashIntensity *= 0.92;
+
+      scopeCtx.beginPath();
+      const h = scopeCanvas.height / 2;
+      const w = scopeCanvas.width;
+      for (let x = 0; x < w; x++) {
+        const normX = x / w;
+        const y = h + Math.sin(normX * 18 + scopePhase) * (h * 0.45) * (0.6 + flashIntensity * 0.4);
+        if (x === 0) scopeCtx.moveTo(x, y); else scopeCtx.lineTo(x, y);
+      }
+      scopeCtx.stroke();
+      scopePhase += 0.08;
+      requestAnimationFrame(renderScope);
+    }
+
+    // WebSerial Connection
+    document.getElementById('btnSerial').onclick = async () => {
       if ('serial' in navigator) {
         try {
           const port = await navigator.serial.requestPort();
           await port.open({ baudRate: 115200 });
-          document.getElementById('serialStatus').innerText = 'Serial Connected! Ready for firmware stream.';
-        } catch (e) { document.getElementById('serialStatus').innerText = `Serial Error: ${e.message}`; }
+          dotSerial.classList.add('active');
+          log('ESP32-P4 Serial Port open at 115200 baud.');
+        } catch (err) { log(`Serial Error: ${err.message}`); }
       } else {
-        alert('WebSerial not supported in this browser. Please use Chrome or Edge.');
+        alert('WebSerial requires Chrome or Edge (enable chrome://flags#enable-web-serial-on-android on mobile).');
       }
     };
+
+    setTimeout(() => { resizePad(); renderScope(); }, 50);
   </script>
 </body>
 </html>
