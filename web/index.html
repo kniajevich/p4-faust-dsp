@@ -3,367 +3,164 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ESP32-P4 Complete Teensy Audio & Faust Workstation</title>
+  <title>ESP32-P4 Modular Patch Studio</title>
   <style>
     :root {
-      --bg: #070a0f;
-      --card: #0f1520;
-      --card-border: #1d2636;
-      --accent: #58a6ff;
-      --accent-teensy: #238636;
-      --accent-phi: #e3b341;
-      --accent-warn: #f78166;
-      --text: #e6edf3;
-      --text-muted: #8b949e;
-      --white-key: #f0f6fc;
-      --black-key: #181d24;
+      --bg: #070a0f; --card: #0e141f; --card-border: #1a2333;
+      --accent: #58a6ff; --accent-glow: rgba(88, 166, 255, 0.35);
+      --accent-buchla: #e3b341; --accent-moog: #f78166;
+      --text: #e6edf3; --text-muted: #8b949e; --white-key: #f0f6fc; --black-key: #151a22;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      margin: 0; padding: 12px; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      user-select: none; -webkit-user-select: none;
-    }
-    .container { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    body { margin: 0; padding: 12px; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; }
+    .container { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
     header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 8px; }
     h1 { font-size: 17px; margin: 0; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
     .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #238636; color: #fff; font-weight: 600; }
     
-    .repo-banner {
-      background: linear-gradient(90deg, #131b26 0%, #1a2538 100%);
-      border: 1px solid #388bfd55; border-radius: 8px; padding: 8px 12px;
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
-    }
+    .repo-banner { background: linear-gradient(90deg, #101622 0%, #172133 100%); border: 1px solid #388bfd55; border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     .repo-banner a { color: #58a6ff; text-decoration: none; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
-    
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    @media (max-width: 800px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
     
     .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
     .card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 0; display: flex; justify-content: space-between; align-items: center; }
 
-    /* Presets Tabs */
-    .tabs-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-    .tab-btn { background: #0c1017; border: 1px solid var(--card-border); color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
-    .tab-btn.active { background: #1c2738; border-color: var(--accent); color: #fff; }
-    .presets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 140px; overflow-y: auto; }
-    @media (max-width: 600px) { .presets-grid { grid-template-columns: repeat(2, 1fr); } }
-    .preset-card { background: #090d14; border: 1px solid var(--card-border); border-radius: 6px; padding: 7px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
-    .preset-card.active { background: #1a2538; border-color: #58a6ff; box-shadow: 0 0 6px rgba(88,166,255,0.3); }
-    .preset-title { font-size: 11px; font-weight: 700; color: #fff; }
-    .preset-sub { font-size: 9px; color: var(--text-muted); }
+    /* Modular Canvas Workspace */
+    .canvas-wrap { position: relative; width: 100%; height: 320px; background: #05080d; border-radius: 8px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; }
+    #patchSvg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+    .patch-node {
+      position: absolute; width: 140px; background: #0f1724; border: 1px solid #283548;
+      border-radius: 6px; padding: 8px; z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.5); cursor: move;
+    }
+    .node-header { font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+    .node-jack { width: 14px; height: 14px; border-radius: 50%; background: #1a2333; border: 2px solid #58a6ff; display: inline-block; cursor: crosshair; touch-action: none; }
+    .node-jack.connected { background: #58a6ff; }
+    .jack-row { display: flex; justify-content: space-between; align-items: center; font-size: 9px; font-family: monospace; color: var(--text-muted); margin: 4px 0; }
 
-    /* Visualizers */
+    /* Meters & Analysis */
     .meters-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
     @media (max-width: 600px) { .meters-grid { grid-template-columns: 1fr; } }
-    .scope-box { height: 95px; background: #070a0f; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; }
+    .scope-box { height: 90px; background: #05080d; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; }
     #fftCanvas { width: 100%; height: 100%; display: block; }
-    .tuner-box { height: 95px; background: #070a0f; border-radius: 6px; border: 1px solid var(--card-border); display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-    .tuner-note { font-size: 30px; font-weight: 800; color: #58a6ff; font-family: monospace; line-height: 1; }
+    .tuner-box { height: 90px; background: #05080d; border-radius: 6px; border: 1px solid var(--card-border); display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+    .tuner-note { font-size: 28px; font-weight: 800; color: #58a6ff; font-family: monospace; line-height: 1; }
     .tuner-hz { font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
-    .meter-rms { position: absolute; right: 8px; top: 8px; bottom: 8px; width: 6px; background: #161f2e; border-radius: 3px; overflow: hidden; }
-    .meter-fill { width: 100%; height: 0%; background: #3fb950; position: absolute; bottom: 0; transition: height 0.05s; }
 
-    /* FX Pedals & Sliders */
-    .pedal { background: #0a0e16; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-    .pedal-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 700; }
-    .pedal-switch { width: 30px; height: 16px; background: #263040; border-radius: 8px; position: relative; cursor: pointer; }
-    .pedal-switch::after { content: ''; position: absolute; width: 12px; height: 12px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: 0.2s; }
-    .pedal-switch.active { background: #238636; }
-    .pedal-switch.active::after { left: 16px; }
-    .ctrl-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: monospace; }
-    input[type=range] { flex-grow: 1; margin: 0 8px; accent-color: var(--accent); }
-
-    /* Mixer 4 Faders */
-    .mixer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .mixer-channel { background: #0a0e16; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
-    .mixer-title { font-size: 10px; font-weight: 700; color: var(--text-muted); }
-
-    /* Drums */
-    .drums-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-    @media (max-width: 600px) { .drums-grid { grid-template-columns: repeat(3, 1fr); } }
-    .btn-drum { background: #131922; border: 1px solid #283344; border-radius: 6px; padding: 10px 2px; text-align: center; cursor: pointer; touch-action: none; }
-    .btn-drum:active { background: var(--accent-warn); color: #000; transform: scale(0.96); }
-    .btn-drum span { display: block; font-weight: 700; font-size: 10px; }
-    .btn-drum small { font-size: 8px; color: var(--text-muted); }
-
-    /* Keyboard */
-    .keyboard-container { width: 100%; height: 125px; position: relative; background: #070a0f; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
+    /* Piano Key Bed */
+    .keyboard-container { width: 100%; height: 120px; position: relative; background: #05080d; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; display: flex; }
     .white-key { flex: 1; height: 100%; background: var(--white-key); border-right: 1px solid #cbd5e1; border-radius: 0 0 3px 3px; position: relative; z-index: 1; cursor: pointer; }
     .white-key.active { background: #79c0ff; }
     .black-key { position: absolute; width: 6%; height: 60%; background: var(--black-key); z-index: 2; border-radius: 0 0 3px 3px; cursor: pointer; border: 1px solid #000; }
     .black-key.active { background: #1f6feb; }
 
-    /* Live C++ Code Box */
-    .code-box { background: #05080c; border: 1px solid #1f2937; border-radius: 6px; padding: 10px; font-family: 'SFMono-Regular', Consolas, Menlo, monospace; font-size: 10px; color: #7ee787; max-height: 130px; overflow-y: auto; white-space: pre; line-height: 1.4; }
+    /* Live Code View */
+    .code-box { background: #04060a; border: 1px solid #1a2333; border-radius: 6px; padding: 10px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 10px; color: #7ee787; max-height: 120px; overflow-y: auto; white-space: pre; line-height: 1.4; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>ESP32-P4 Teensy Audio Pro Workstation <span class="badge">v0.8.0</span></h1>
-      <div style="font-size: 12px; font-family: monospace; color: var(--text-muted);">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>30+ Classes Live
+      <h1>ESP32-P4 Modular Patch Studio <span class="badge">v0.9.0</span></h1>
+      <div style="font-size: 11px; font-family: monospace; color: var(--text-muted);">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>Dynamic Patch Graph
       </div>
     </header>
 
-    <!-- Repository Showcase -->
+    <!-- Repository Banner -->
     <div class="repo-banner">
       <div>
-        <span style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); display: block;">Full PJRC Teensy Audio Port running on Dual-Core RISC-V 400 MHz:</span>
+        <span style="font-size: 10px; text-transform: uppercase; color: var(--text-muted); display: block;">Hardware Native Ports:</span>
         <a href="https://github.com/kniajevich/p4-teensy-audio" target="_blank">
           <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
-          kniajevich/p4-teensy-audio (DMA Streamer, AudioMemory, FFT, Tuner)
+          kniajevich/p4-teensy-audio & p4-faust-dsp
         </a>
       </div>
+      <button onclick="resetDefaultCords()" style="background:#1c2738; color:#fff; border:1px solid #30363d; font-size:11px; padding:4px 10px; border-radius:4px; cursor:pointer;">Reset Patch Cords</button>
     </div>
 
-    <!-- Master Presets Grid -->
+    <!-- Modular Canvas with Patch Cords -->
     <div class="card">
-      <h2>Master Preset Library <span id="activePatchName" style="color: #58a6ff;">Acid Bass 303</span></h2>
-      <div class="tabs-bar">
-        <button class="tab-btn active" onclick="filterCat('bass')">Bass (5)</button>
-        <button class="tab-btn" onclick="filterCat('lead')">Leads (5)</button>
-        <button class="tab-btn" onclick="filterCat('pad')">Pads & Ambient (5)</button>
-        <button class="tab-btn" onclick="filterCat('pluck')">Keys & Plucks (5)</button>
-        <button class="tab-btn" onclick="filterCat('modular')">Modular FX (5)</button>
+      <h2>Interactive Eurorack Patch Bay (Drag Cords Between Sockets)</h2>
+      <div class="canvas-wrap" id="patchCanvas">
+        <svg id="patchSvg"></svg>
+
+        <!-- Node 1: VCO 1 -->
+        <div class="patch-node" id="node-osc" style="top: 20px; left: 20px;">
+          <div class="node-header">VCO 1 (Saw/Sine)</div>
+          <div class="jack-row"><span>WAVE OUT</span><div class="node-jack" data-socket="osc-out"></div></div>
+        </div>
+
+        <!-- Node 2: Buchla 292 LPG -->
+        <div class="patch-node" id="node-lpg" style="top: 20px; left: 210px;">
+          <div class="node-header" style="color: var(--accent-buchla);">Buchla 292 LPG</div>
+          <div class="jack-row"><span>AUDIO IN</span><div class="node-jack" data-socket="lpg-in"></div></div>
+          <div class="jack-row"><span>AUDIO OUT</span><div class="node-jack" data-socket="lpg-out"></div></div>
+        </div>
+
+        <!-- Node 3: Moog 24dB Ladder -->
+        <div class="patch-node" id="node-moog" style="top: 170px; left: 210px;">
+          <div class="node-header" style="color: var(--accent-moog);">Moog 24dB Ladder</div>
+          <div class="jack-row"><span>AUDIO IN</span><div class="node-jack" data-socket="moog-in"></div></div>
+          <div class="jack-row"><span>AUDIO OUT</span><div class="node-jack" data-socket="moog-out"></div></div>
+        </div>
+
+        <!-- Node 4: Tape Delay -->
+        <div class="patch-node" id="node-delay" style="top: 20px; left: 400px;">
+          <div class="node-header">Tape Delay</div>
+          <div class="jack-row"><span>AUDIO IN</span><div class="node-jack" data-socket="delay-in"></div></div>
+          <div class="jack-row"><span>AUDIO OUT</span><div class="node-jack" data-socket="delay-out"></div></div>
+        </div>
+
+        <!-- Node 5: Master DAC Out -->
+        <div class="patch-node" id="node-out" style="top: 90px; left: 600px;">
+          <div class="node-header" style="color: #3fb950;">Master I2S/TDM</div>
+          <div class="jack-row"><span>CH 1 (L)</span><div class="node-jack" data-socket="dac-l"></div></div>
+          <div class="jack-row"><span>CH 2 (R)</span><div class="node-jack" data-socket="dac-r"></div></div>
+        </div>
       </div>
-      <div class="presets-grid" id="presetContainer"></div>
     </div>
 
-    <!-- Analysis & Diagnostics -->
+    <!-- Real-Time Analysis & Diagnostics -->
     <div class="card">
-      <h2>Real-Time Analysis (AudioAnalyzeFFT1024, AudioAnalyzeNoteFreq & Peak)</h2>
+      <h2>AudioAnalyzeFFT1024 & NoteFreq Diagnostics</h2>
       <div class="meters-grid">
         <div class="scope-box"><canvas id="fftCanvas"></canvas></div>
         <div class="tuner-box">
-          <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">YIN Pitch Tracker</span>
+          <span style="font-size: 9px; color: var(--text-muted); text-transform: uppercase;">Active Pitch Tracker</span>
           <div class="tuner-note" id="tunerNote">--</div>
           <div class="tuner-hz" id="tunerHz">0.0 Hz</div>
-          <div class="meter-rms"><div class="meter-fill" id="rmsFill"></div></div>
         </div>
       </div>
     </div>
 
-    <!-- AudioEffect... Exhaustive FX Rack -->
+    <!-- Polyphonic Key Bed -->
     <div class="card">
-      <h2>Teensy Audio Modular FX Rack (AudioEffect...)</h2>
-      <div class="grid-3">
-        <!-- Bitcrusher -->
-        <div class="pedal">
-          <div class="pedal-header"><span>BITCRUSHER</span><div class="pedal-switch" id="swCrush" onclick="toggleFX('crush')"></div></div>
-          <div class="ctrl-row"><span>Bits</span><input type="range" id="crushBits" min="2" max="16" value="6" oninput="updateFX()" /></div>
-        </div>
-        <!-- Waveshaper -->
-        <div class="pedal">
-          <div class="pedal-header"><span>WAVESHAPER</span><div class="pedal-switch active" id="swDrive" onclick="toggleFX('drive')"></div></div>
-          <div class="ctrl-row"><span>Drive</span><input type="range" id="driveVal" min="1" max="40" value="14" oninput="updateFX()" /></div>
-        </div>
-        <!-- Chorus / Flanger -->
-        <div class="pedal">
-          <div class="pedal-header"><span>CHORUS / FLANGE</span><div class="pedal-switch active" id="swChorus" onclick="toggleFX('chorus')"></div></div>
-          <div class="ctrl-row"><span>Depth</span><input type="range" id="chorusDepth" min="1" max="100" value="65" oninput="updateFX()" /></div>
-        </div>
-        <!-- Stereo Delay -->
-        <div class="pedal">
-          <div class="pedal-header"><span>TAPE DELAY</span><div class="pedal-switch active" id="swDelay" onclick="toggleFX('delay')"></div></div>
-          <div class="ctrl-row"><span>Time</span><input type="range" id="delayTime" min="10" max="800" value="260" oninput="updateFX()" /></div>
-        </div>
-        <!-- Freeverb -->
-        <div class="pedal">
-          <div class="pedal-header"><span>FREEVERB</span><div class="pedal-switch active" id="swVerb" onclick="toggleFX('verb')"></div></div>
-          <div class="ctrl-row"><span>Room</span><input type="range" id="verbRoom" min="1" max="100" value="70" oninput="updateFX()" /></div>
-        </div>
-        <!-- Panner -->
-        <div class="pedal">
-          <div class="pedal-header"><span>PAN (AudioEffectPan)</span><span id="panVal" style="font-size:10px;">0.0</span></div>
-          <div class="ctrl-row"><span>L/R</span><input type="range" id="slPan" min="-100" max="100" value="0" oninput="updatePan()" /></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4-Band Biquad EQ & Envelope ADSR -->
-    <div class="grid-2">
-      <!-- 4-Stage Parametric Biquad Filter -->
-      <div class="card">
-        <h2>AudioFilterBiquad (4-Band Parametric EQ)</h2>
-        <div class="ctrl-row"><span>Low (100Hz)</span><input type="range" id="eqLow" min="-12" max="12" value="2" oninput="updateEQ()" /></div>
-        <div class="ctrl-row"><span>Mid 1 (800Hz)</span><input type="range" id="eqMid1" min="-12" max="12" value="0" oninput="updateEQ()" /></div>
-        <div class="ctrl-row"><span>Mid 2 (2.5kHz)</span><input type="range" id="eqMid2" min="-12" max="12" value="3" oninput="updateEQ()" /></div>
-        <div class="ctrl-row"><span>High (8kHz)</span><input type="range" id="eqHigh" min="-12" max="12" value="1" oninput="updateEQ()" /></div>
-      </div>
-
-      <!-- AudioEffectEnvelope (ADSR) -->
-      <div class="card">
-        <h2>AudioEffectEnvelope (ADSR Profile)</h2>
-        <div class="ctrl-row"><span>Attack (ms)</span><input type="range" id="envA" min="1" max="500" value="15" oninput="updateADSR()" /></div>
-        <div class="ctrl-row"><span>Decay (ms)</span><input type="range" id="envD" min="10" max="800" value="120" oninput="updateADSR()" /></div>
-        <div class="ctrl-row"><span>Sustain (%)</span><input type="range" id="envS" min="0" max="100" value="70" oninput="updateADSR()" /></div>
-        <div class="ctrl-row"><span>Release (ms)</span><input type="range" id="envR" min="20" max="1500" value="250" oninput="updateADSR()" /></div>
-      </div>
-    </div>
-
-    <!-- AudioMixer4 Console -->
-    <div class="card">
-      <h2>AudioMixer4 Console (Zero-Copy Summing)</h2>
-      <div class="mixer-grid">
-        <div class="mixer-channel">
-          <span class="mixer-title">CH 1: SYNTH</span>
-          <input type="range" id="mixCh1" min="0" max="100" value="85" oninput="updateMixer()" />
-        </div>
-        <div class="mixer-channel">
-          <span class="mixer-title">CH 2: SUB/SINE</span>
-          <input type="range" id="mixCh2" min="0" max="100" value="40" oninput="updateMixer()" />
-        </div>
-        <div class="mixer-channel">
-          <span class="mixer-title">CH 3: NOISE</span>
-          <input type="range" id="mixCh3" min="0" max="100" value="15" oninput="updateMixer()" />
-        </div>
-        <div class="mixer-channel">
-          <span class="mixer-title">CH 4: DRUMS</span>
-          <input type="range" id="mixCh4" min="0" max="100" value="90" oninput="updateMixer()" />
-        </div>
-      </div>
-    </div>
-
-    <!-- AudioSynthSimpleDrum (808 Unit) -->
-    <div class="card">
-      <h2>AudioSynthSimpleDrum (808 Analog Percussion)</h2>
-      <div class="drums-grid">
-        <div class="btn-drum" onpointerdown="triggerDrum('bd')"><span>BASS DRUM</span><small>Sub 42Hz</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('sd')"><span>SNARE</span><small>Noise Core</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('ch')"><span>CL-HAT</span><small>Metallic</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('oh')"><span>OP-HAT</span><small>Reso Sizzle</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('cp')"><span>CLAP</span><small>Burst Env</small></div>
-        <div class="btn-drum" onpointerdown="triggerDrum('tm')"><span>HI-TOM</span><small>Pitch Dive</small></div>
-      </div>
-    </div>
-
-    <!-- Keyboard -->
-    <div class="card">
-      <h2>Polyphonic Key Bed (AudioSynthWaveform)</h2>
+      <h2>Polyphonic Key Bed (Play Canvas Graph)</h2>
       <div class="keyboard-container" id="keyboard"></div>
     </div>
 
-    <!-- Live C++ Code Generator -->
+    <!-- Real-Time ESP-IDF Code Generation -->
     <div class="card">
-      <h2>Live Generated C++ ESP-IDF Code (Teensy Audio Stream Graph)</h2>
-      <div class="code-box" id="codeBox">// Generating ESP32-P4 Teensy Audio Architecture...</div>
+      <h2>Live Generated C++ Firmware Graph (Reflects Wire Connections)</h2>
+      <div class="code-box" id="codeBox">// Generating C++ audio graph based on canvas patch cords...</div>
     </div>
   </div>
 
   <script>
     // -------------------------------------------------------------------------
-    // 1. Presets Database (25 Master Patches)
+    // 1. Audio Engine & Dynamic Graph Wiring
     // -------------------------------------------------------------------------
-    const PRESET_LIBRARY = [
-      // BASS
-      { id: 'b1', cat: 'bass', name: 'Acid Bass 303', sub: 'Saw + Resonant LP + Overdrive', wave: 'sawtooth', fType: 'lowpass', cutoff: 950, q: 14, drive: true, driveVal: 24, delay: false, crush: false, a: 5, d: 100, s: 60, r: 120 },
-      { id: 'b2', cat: 'bass', name: 'Cyberpunk Reese', sub: 'Pulse PWM + Heavy Drive', wave: 'square', fType: 'lowpass', cutoff: 1400, q: 6, drive: true, driveVal: 32, delay: false, crush: false, a: 20, d: 200, s: 80, r: 350 },
-      { id: 'b3', cat: 'bass', name: 'Sub Pumper', sub: 'Pure Sine 40Hz + Smooth LP', wave: 'sine', fType: 'lowpass', cutoff: 380, q: 2, drive: false, driveVal: 1, delay: false, crush: false, a: 10, d: 80, s: 90, r: 200 },
-      { id: 'b4', cat: 'bass', name: 'Bit-Crushed Slap', sub: 'Saw + 4-Bit Downsample', wave: 'sawtooth', fType: 'lowpass', cutoff: 2200, q: 8, drive: true, driveVal: 15, delay: false, crush: true, crushBits: 4, a: 5, d: 110, s: 50, r: 150 },
-      { id: 'b5', cat: 'bass', name: 'Modular Moog Bass', sub: '24dB Ladder Sim + Resonance', wave: 'sawtooth', fType: 'lowpass', cutoff: 750, q: 16, drive: false, driveVal: 1, delay: false, crush: false, a: 10, d: 150, s: 70, r: 250 },
-      // LEADS
-      { id: 'l1', cat: 'lead', name: 'Screaming Sync', sub: 'Saw + High Q Bandpass Drive', wave: 'sawtooth', fType: 'bandpass', cutoff: 2400, q: 18, drive: true, driveVal: 28, delay: true, delayTime: 220, crush: false, a: 15, d: 140, s: 75, r: 200 },
-      { id: 'l2', cat: 'lead', name: 'Chiptune Hero', sub: 'Square PWM + Bitcrush 6-Bit', wave: 'square', fType: 'lowpass', cutoff: 6000, q: 3, drive: false, driveVal: 1, delay: true, delayTime: 120, crush: true, crushBits: 6, a: 2, d: 80, s: 80, r: 90 },
-      { id: 'l3', cat: 'lead', name: 'Vangelis CS-80', sub: 'Warm Saw + Tape Delay', wave: 'sawtooth', fType: 'lowpass', cutoff: 3200, q: 4, drive: false, driveVal: 1, delay: true, delayTime: 340, crush: false, a: 80, d: 300, s: 85, r: 450 },
-      { id: 'l4', cat: 'lead', name: 'Phi Resonant Lead', sub: 'Golden Q 0.786 + Fast Pluck', wave: 'triangle', fType: 'lowpass', cutoff: 4200, q: 9, drive: true, driveVal: 10, delay: true, delayTime: 180, crush: false, a: 8, d: 180, s: 60, r: 300 },
-      { id: 'l5', cat: 'lead', name: 'Hyper Saw', sub: 'Highpass Sizzle + Distortion', wave: 'sawtooth', fType: 'highpass', cutoff: 800, q: 5, drive: true, driveVal: 22, delay: true, delayTime: 160, crush: false, a: 10, d: 200, s: 70, r: 250 },
-      // PADS
-      { id: 'p1', cat: 'pad', name: 'Blade Runner Drone', sub: 'Slow Saw + Deep Tape Echo', wave: 'sawtooth', fType: 'lowpass', cutoff: 1100, q: 3, drive: false, driveVal: 1, delay: true, delayTime: 480, crush: false, a: 350, d: 500, s: 90, r: 1200 },
-      { id: 'p2', cat: 'pad', name: 'Fibonacci Shimmer', sub: 'Triangle + Bandpass Echo', wave: 'triangle', fType: 'bandpass', cutoff: 1600, q: 7, drive: false, driveVal: 1, delay: true, delayTime: 377, crush: false, a: 250, d: 400, s: 85, r: 900 },
-      { id: 'p3', cat: 'pad', name: 'Lo-Fi Nostalgia', sub: 'Warm Sine + 8-Bit Tape Wow', wave: 'sine', fType: 'lowpass', cutoff: 1800, q: 2, drive: true, driveVal: 8, delay: true, delayTime: 280, crush: true, crushBits: 8, a: 120, d: 300, s: 75, r: 600 },
-      { id: 'p4', cat: 'pad', name: 'Nebula Space Bed', sub: 'Pink Noise Core + Slow Sweep', wave: 'noise', fType: 'bandpass', cutoff: 1200, q: 12, drive: false, driveVal: 1, delay: true, delayTime: 550, crush: false, a: 450, d: 600, s: 95, r: 1500 },
-      { id: 'p5', cat: 'pad', name: 'Sub-Zero Freeze', sub: 'Square + Freeverb Room', wave: 'square', fType: 'lowpass', cutoff: 850, q: 4, drive: false, driveVal: 1, delay: true, delayTime: 420, crush: false, a: 200, d: 450, s: 80, r: 1000 },
-      // KEYS & PLUCKS
-      { id: 'k1', cat: 'pluck', name: 'Karplus Acoustic Guitar', sub: 'Physical Plucked Model', wave: 'karplus', fType: 'lowpass', cutoff: 8000, q: 2, drive: false, driveVal: 1, delay: false, crush: false, a: 2, d: 600, s: 10, r: 1100 },
-      { id: 'k2', cat: 'pluck', name: 'DX7 Electric Piano', sub: 'Bell Tone + Transient Ping', wave: 'triangle', fType: 'lowpass', cutoff: 3500, q: 5, drive: false, driveVal: 1, delay: true, delayTime: 180, crush: false, a: 5, d: 250, s: 30, r: 400 },
-      { id: 'k3', cat: 'pluck', name: 'Pizzicato Strings', sub: 'Short Decay + Clean Bandpass', wave: 'sawtooth', fType: 'bandpass', cutoff: 2200, q: 6, drive: false, driveVal: 1, delay: false, crush: false, a: 3, d: 80, s: 5, r: 80 },
-      { id: 'k4', cat: 'pluck', name: 'Toybox Kalimba', sub: 'Sine Ping + Subtle Dirt', wave: 'sine', fType: 'lowpass', cutoff: 4800, q: 8, drive: true, driveVal: 5, delay: true, delayTime: 240, crush: false, a: 2, d: 350, s: 15, r: 500 },
-      { id: 'k5', cat: 'pluck', name: 'Eurorack Clock Pluck', sub: 'Impulse Click + High Resonance', wave: 'square', fType: 'bandpass', cutoff: 1900, q: 19, drive: false, driveVal: 1, delay: true, delayTime: 140, crush: false, a: 1, d: 50, s: 0, r: 60 },
-      // MODULAR
-      { id: 'm1', cat: 'modular', name: 'Alien Transmission', sub: 'Pink Noise + Peak Modulation', wave: 'noise', fType: 'bandpass', cutoff: 2800, q: 22, drive: true, driveVal: 35, delay: true, delayTime: 310, crush: true, crushBits: 5, a: 100, d: 400, s: 80, r: 800 },
-      { id: 'm2', cat: 'modular', name: 'Industrial Smasher', sub: 'Square + Max Drive + 3-Bit', wave: 'square', fType: 'lowpass', cutoff: 3000, q: 10, drive: true, driveVal: 40, delay: false, crush: true, crushBits: 3, a: 10, d: 150, s: 70, r: 200 },
-      { id: 'm3', cat: 'modular', name: 'Sonar Ping', sub: 'Pure Sine 1.2kHz + Long Echo', wave: 'sine', fType: 'bandpass', cutoff: 1200, q: 25, drive: false, driveVal: 1, delay: true, delayTime: 620, crush: false, a: 5, d: 300, s: 20, r: 700 },
-      { id: 'm4', cat: 'modular', name: 'S&H Randomizer Sim', sub: 'Noise Glitch + Tape Echo', wave: 'noise', fType: 'lowpass', cutoff: 1600, q: 8, drive: true, driveVal: 18, delay: true, delayTime: 190, crush: true, crushBits: 7, a: 5, d: 120, s: 40, r: 300 },
-      { id: 'm5', cat: 'modular', name: 'Dark Void Drone', sub: 'Triangle 35Hz + Saturated Echo', wave: 'triangle', fType: 'lowpass', cutoff: 450, q: 7, drive: true, driveVal: 20, delay: true, delayTime: 400, crush: false, a: 500, d: 800, s: 95, r: 1800 }
+    let actx = null, analyser = null, masterGain = null;
+    let oscNode = null, lpgFilter = null, moogFilter = null, delayNode = null, delayGain = null;
+    const activeVoices = new Map();
+
+    // Active Connections Map (Source Socket -> Target Socket)
+    let patchConnections = [
+      { from: 'osc-out', to: 'lpg-in', color: '#58a6ff' },
+      { from: 'lpg-out', to: 'delay-in', color: '#e3b341' },
+      { from: 'delay-out', to: 'dac-l', color: '#f78166' }
     ];
 
-    let activePatch = PRESET_LIBRARY[0];
-    let curCat = 'bass';
-
-    function filterCat(c) {
-      curCat = c;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.innerText.toLowerCase().startsWith(c)));
-      renderPresets();
-    }
-
-    function renderPresets() {
-      const c = document.getElementById('presetContainer');
-      c.innerHTML = '';
-      PRESET_LIBRARY.filter(p => p.cat === curCat).forEach(p => {
-        const card = document.createElement('div');
-        card.className = `preset-card ${p.id === activePatch.id ? 'active' : ''}`;
-        card.onclick = () => loadPatch(p);
-        card.innerHTML = `<span class="preset-title">${p.name}</span><span class="preset-sub">${p.sub}</span>`;
-        c.appendChild(card);
-      });
-    }
-
-    function loadPatch(p) {
-      activePatch = p;
-      document.getElementById('activePatchName').innerText = p.name;
-      renderPresets();
-      initDSP();
-
-      mainFilter.type = p.fType;
-      mainFilter.frequency.setTargetAtTime(p.cutoff, actx.currentTime, 0.02);
-      mainFilter.Q.setTargetAtTime(p.q, actx.currentTime, 0.02);
-
-      fxState.drive = p.drive;
-      document.getElementById('swDrive').classList.toggle('active', p.drive);
-      document.getElementById('driveVal').value = p.driveVal;
-
-      fxState.delay = p.delay;
-      document.getElementById('swDelay').classList.toggle('active', p.delay);
-      if (p.delayTime) document.getElementById('delayTime').value = p.delayTime;
-
-      fxState.crush = p.crush;
-      document.getElementById('swCrush').classList.toggle('active', p.crush);
-      if (p.crushBits) document.getElementById('crushBits').value = p.crushBits;
-
-      document.getElementById('envA').value = p.a;
-      document.getElementById('envD').value = p.d;
-      document.getElementById('envS').value = p.s;
-      document.getElementById('envR').value = p.r;
-
-      updateFX();
-      updateCodeGenerator();
-    }
-
-    // -------------------------------------------------------------------------
-    // 2. Audio Context & DSP Engine Setup
-    // -------------------------------------------------------------------------
-    let actx = null;
-    let masterOut = null, mainFilter = null;
-    let delayUnit = null, delayGain = null, shaperNode = null, pannerNode = null;
-    let analyserNode = null;
-    let eqL = null, eqM1 = null, eqM2 = null, eqH = null;
-    const activeVoices = new Map();
-    const fxState = { crush: false, drive: true, delay: true, verb: true, chorus: true };
-
-    function makeDistortion(k = 20) {
-      const n = 44100, c = new Float32Array(n), deg = Math.PI / 180;
-      for (let i = 0; i < n; ++i) {
-        const x = (i * 2) / n - 1;
-        c[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-      }
-      return c;
-    }
-
-    function initDSP() {
+    function initAudio() {
       if (actx) {
         if (actx.state === 'suspended') actx.resume();
         return;
@@ -371,147 +168,86 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       actx = new AC();
 
-      analyserNode = actx.createAnalyser();
-      analyserNode.fftSize = 1024;
+      analyser = actx.createAnalyser();
+      analyser.fftSize = 1024;
 
-      masterOut = actx.createGain();
-      masterOut.gain.value = 0.85;
+      masterGain = actx.createGain();
+      masterGain.gain.value = 0.8;
 
-      // Filter (StateVariable)
-      mainFilter = actx.createBiquadFilter();
-      mainFilter.type = 'lowpass';
-      mainFilter.frequency.value = 950;
-      mainFilter.Q.value = 14;
+      // Buchla LPG Model (Lowpass + Dynamic Envelope)
+      lpgFilter = actx.createBiquadFilter();
+      lpgFilter.type = 'lowpass';
+      lpgFilter.frequency.value = 1600;
+      lpgFilter.Q.value = 2.5;
 
-      // 4-Band Biquad EQ (AudioFilterBiquad)
-      eqL = actx.createBiquadFilter(); eqL.type = 'lowshelf'; eqL.frequency.value = 100; eqL.gain.value = 2;
-      eqM1 = actx.createBiquadFilter(); eqM1.type = 'peaking'; eqM1.frequency.value = 800; eqM1.Q.value = 1.0; eqM1.gain.value = 0;
-      eqM2 = actx.createBiquadFilter(); eqM2.type = 'peaking'; eqM2.frequency.value = 2500; eqM2.Q.value = 1.2; eqM2.gain.value = 3;
-      eqH = actx.createBiquadFilter(); eqH.type = 'highshelf'; eqH.frequency.value = 8000; eqH.gain.value = 1;
+      // Moog 24dB Ladder Model (Resonant LP)
+      moogFilter = actx.createBiquadFilter();
+      moogFilter.type = 'lowpass';
+      moogFilter.frequency.value = 850;
+      moogFilter.Q.value = 12;
 
-      // Waveshaper
-      shaperNode = actx.createWaveShaper();
-      shaperNode.curve = makeDistortion(14);
-
-      // Stereo Delay
-      delayUnit = actx.createDelay(1.0);
-      delayUnit.delayTime.value = 0.26;
+      // Tape Delay Node
+      delayNode = actx.createDelay(1.0);
+      delayNode.delayTime.value = 0.28;
       delayGain = actx.createGain();
-      delayGain.gain.value = 0.42;
-      delayUnit.connect(delayGain);
-      delayGain.connect(delayUnit);
+      delayGain.gain.value = 0.45;
+      delayNode.connect(delayGain);
+      delayGain.connect(delayNode);
 
-      // Panner (AudioEffectPan)
-      pannerNode = actx.createStereoPanner ? actx.createStereoPanner() : null;
-
-      // Signal Graph Routing: Filter -> EQ -> Shaper -> Delay -> Pan -> Master -> Analyser -> DAC
-      mainFilter.connect(eqL);
-      eqL.connect(eqM1); eqM1.connect(eqM2); eqM2.connect(eqH);
-      eqH.connect(shaperNode);
-      shaperNode.connect(delayUnit);
-
-      if (pannerNode) {
-        shaperNode.connect(pannerNode);
-        delayGain.connect(pannerNode);
-        pannerNode.connect(masterOut);
-      } else {
-        shaperNode.connect(masterOut);
-        delayGain.connect(masterOut);
-      }
-
-      masterOut.connect(analyserNode);
-      analyserNode.connect(actx.destination);
-      updateCodeGenerator();
+      rebuildAudioRouting();
+      masterGain.connect(analyser);
+      analyser.connect(actx.destination);
     }
 
-    function toggleFX(name) {
-      fxState[name] = !fxState[name];
-      const el = document.getElementById(`sw${name.charAt(0).toUpperCase() + name.slice(1)}`);
-      if (el) el.classList.toggle('active', fxState[name]);
-      updateFX();
+    function rebuildAudioRouting() {
+      if (!actx) return;
+      // Disconnect dynamic nodes
+      try { lpgFilter.disconnect(); } catch(e) {}
+      try { moogFilter.disconnect(); } catch(e) {}
+      try { delayGain.disconnect(); } catch(e) {}
+      try { delayNode.disconnect(); delayNode.connect(delayGain); delayGain.connect(delayNode); } catch(e) {}
+
+      patchConnections.forEach(c => {
+        let src = null, dst = null;
+        if (c.from === 'lpg-out') src = lpgFilter;
+        if (c.from === 'moog-out') src = moogFilter;
+        if (c.from === 'delay-out') src = delayGain;
+
+        if (c.to === 'lpg-in') dst = lpgFilter;
+        if (c.to === 'moog-in') dst = moogFilter;
+        if (c.to === 'delay-in') dst = delayNode;
+        if (c.to === 'dac-l' || c.to === 'dac-r') dst = masterGain;
+
+        if (src && dst) {
+          try { src.connect(dst); } catch(e) {}
+        }
+      });
+      updateCodeView();
     }
 
-    function updateFX() {
-      initDSP();
-      if (shaperNode) {
-        shaperNode.curve = fxState.drive ? makeDistortion(parseInt(document.getElementById('driveVal').value)) : null;
-      }
-      if (delayGain) {
-        delayGain.gain.setTargetAtTime(fxState.delay ? 0.42 : 0.0, actx.currentTime, 0.02);
-        const dt = parseInt(document.getElementById('delayTime').value) / 1000.0;
-        delayUnit.delayTime.setTargetAtTime(dt, actx.currentTime, 0.02);
-      }
-      updateCodeGenerator();
-    }
-
-    function updateEQ() {
-      initDSP();
-      if (!eqL) return;
-      eqL.gain.setTargetAtTime(parseFloat(document.getElementById('eqLow').value), actx.currentTime, 0.02);
-      eqM1.gain.setTargetAtTime(parseFloat(document.getElementById('eqMid1').value), actx.currentTime, 0.02);
-      eqM2.gain.setTargetAtTime(parseFloat(document.getElementById('eqMid2').value), actx.currentTime, 0.02);
-      eqH.gain.setTargetAtTime(parseFloat(document.getElementById('eqHigh').value), actx.currentTime, 0.02);
-      updateCodeGenerator();
-    }
-
-    function updatePan() {
-      initDSP();
-      const v = parseInt(document.getElementById('slPan').value) / 100.0;
-      document.getElementById('panVal').innerText = v.toFixed(2);
-      if (pannerNode) pannerNode.pan.setTargetAtTime(v, actx.currentTime, 0.02);
-    }
-
-    function updateMixer() {
-      initDSP();
-      updateCodeGenerator();
-    }
-
-    function updateADSR() {
-      updateCodeGenerator();
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. Polyphonic Synthesis Key Bed
-    // -------------------------------------------------------------------------
     function playNote(midi) {
-      initDSP();
+      initAudio();
       if (activeVoices.has(midi)) stopNote(midi);
       const now = actx.currentTime;
       const freq = 440 * Math.pow(2, (midi - 69) / 12);
-      const wave = activePatch.wave;
+
+      const osc = actx.createOscillator();
       const vGain = actx.createGain();
-      let osc;
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
 
-      const att = parseInt(document.getElementById('envA').value) / 1000.0;
-      const dec = parseInt(document.getElementById('envD').value) / 1000.0;
-      const sus = (parseInt(document.getElementById('envS').value) / 100.0) * 0.35;
-
-      if (wave === 'karplus') {
-        const burst = 1.0 / freq;
-        const buf = actx.createBuffer(1, actx.sampleRate * burst, actx.sampleRate);
-        const d = buf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        osc = actx.createBufferSource(); osc.buffer = buf;
-        vGain.gain.setValueAtTime(0.8, now);
-        vGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-      } else if (wave === 'noise') {
-        const buf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
-        const d = buf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        osc = actx.createBufferSource(); osc.buffer = buf; osc.loop = true;
-        vGain.gain.setValueAtTime(0.001, now);
-        vGain.gain.linearRampToValueAtTime(0.4, now + att);
-        vGain.gain.exponentialRampToValueAtTime(sus + 0.001, now + att + dec);
-      } else {
-        osc = actx.createOscillator(); osc.type = wave;
-        osc.frequency.setValueAtTime(freq, now);
-        vGain.gain.setValueAtTime(0.001, now);
-        vGain.gain.linearRampToValueAtTime(0.35, now + att);
-        vGain.gain.exponentialRampToValueAtTime(sus + 0.001, now + att + dec);
-      }
-
+      vGain.gain.setValueAtTime(0.001, now);
+      vGain.gain.linearRampToValueAtTime(0.4, now + 0.015);
       osc.connect(vGain);
-      vGain.connect(mainFilter);
+
+      // Route osc to target inputs based on patch cords
+      patchConnections.filter(c => c.from === 'osc-out').forEach(c => {
+        if (c.to === 'lpg-in') vGain.connect(lpgFilter);
+        if (c.to === 'moog-in') vGain.connect(moogFilter);
+        if (c.to === 'delay-in') vGain.connect(delayNode);
+        if (c.to === 'dac-l' || c.to === 'dac-r') vGain.connect(masterGain);
+      });
+
       osc.start(now);
       activeVoices.set(midi, { osc, vGain });
     }
@@ -520,59 +256,118 @@
       if (!actx || !activeVoices.has(midi)) return;
       const { osc, vGain } = activeVoices.get(midi);
       const now = actx.currentTime;
-      const rel = parseInt(document.getElementById('envR').value) / 1000.0;
       vGain.gain.cancelScheduledValues(now);
       vGain.gain.setValueAtTime(vGain.gain.value, now);
-      vGain.gain.exponentialRampToValueAtTime(0.0001, now + rel);
+      vGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
       setTimeout(() => {
         try { osc.stop(); osc.disconnect(); vGain.disconnect(); } catch(e) {}
-      }, (rel * 1000) + 60);
+      }, 250);
       activeVoices.delete(midi);
     }
 
     // -------------------------------------------------------------------------
-    // 4. Analog 808 Drums
+    // 2. Interactive SVG Patch Cords & Draggable Nodes
     // -------------------------------------------------------------------------
-    function triggerDrum(t) {
-      initDSP();
-      const now = actx.currentTime;
-      if (t === 'bd') {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.frequency.setValueAtTime(150, now); o.frequency.exponentialRampToValueAtTime(42, now + 0.08);
-        g.gain.setValueAtTime(1.0, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.45);
-      } else if (t === 'sd') {
-        const o = actx.createOscillator(), og = actx.createGain();
-        o.type = 'triangle'; o.frequency.setValueAtTime(180, now);
-        og.gain.setValueAtTime(0.5, now); og.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-        o.connect(og); og.connect(mainFilter); o.start(now); o.stop(now + 0.12);
-      } else if (t === 'ch') {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.type = 'square'; o.frequency.setValueAtTime(8000, now);
-        g.gain.setValueAtTime(0.4, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.05);
-      } else if (t === 'oh') {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.type = 'square'; o.frequency.setValueAtTime(6500, now);
-        g.gain.setValueAtTime(0.4, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.35);
-      } else if (t === 'cp') {
-        [0, 0.015, 0.03].forEach(d => {
-          const o = actx.createOscillator(), g = actx.createGain();
-          o.type = 'square'; o.frequency.setValueAtTime(1200, now + d);
-          g.gain.setValueAtTime(0.5, now + d); g.gain.exponentialRampToValueAtTime(0.001, now + d + 0.08);
-          o.connect(g); g.connect(mainFilter); o.start(now + d); o.stop(now + d + 0.08);
-        });
-      } else if (t === 'tm') {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.frequency.setValueAtTime(140, now); o.frequency.exponentialRampToValueAtTime(70, now + 0.25);
-        g.gain.setValueAtTime(0.8, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        o.connect(g); g.connect(mainFilter); o.start(now); o.stop(now + 0.3);
-      }
+    const canvas = document.getElementById('patchCanvas');
+    const svg = document.getElementById('patchSvg');
+    let dragCord = null;
+
+    function getSocketCenter(socketId) {
+      const el = document.querySelector(`[data-socket="${socketId}"]`);
+      if (!el) return { x: 0, y: 0 };
+      const r = el.getBoundingClientRect();
+      const cr = canvas.getBoundingClientRect();
+      return { x: r.left - cr.left + r.width / 2, y: r.top - cr.top + r.height / 2 };
+    }
+
+    function drawPatchCords() {
+      svg.innerHTML = '';
+      patchConnections.forEach(c => {
+        const p1 = getSocketCenter(c.from);
+        const p2 = getSocketCenter(c.to);
+        const dx = (p2.x - p1.x) * 0.5;
+        const dy = Math.abs(p2.y - p1.y) * 0.5 + 40; // cable droop curvature
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${p1.x} ${p1.y} C ${p1.x + dx} ${p1.y + dy}, ${p2.x - dx} ${p2.y + dy}, ${p2.x} ${p2.y}`);
+        path.setAttribute('stroke', c.color || '#58a6ff');
+        path.setAttribute('stroke-width', '4');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(path);
+      });
+    }
+
+    function resetDefaultCords() {
+      patchConnections = [
+        { from: 'osc-out', to: 'lpg-in', color: '#58a6ff' },
+        { from: 'lpg-out', to: 'delay-in', color: '#e3b341' },
+        { from: 'delay-out', to: 'dac-l', color: '#f78166' }
+      ];
+      drawPatchCords();
+      rebuildAudioRouting();
+    }
+
+    // Draggable Nodes Logic
+    document.querySelectorAll('.patch-node').forEach(node => {
+      let isDragging = false, startX, startY, initL, initT;
+      node.addEventListener('pointerdown', e => {
+        if (e.target.classList.contains('node-jack')) return;
+        isDragging = true;
+        startX = e.clientX; startY = e.clientY;
+        initL = node.offsetLeft; initT = node.offsetTop;
+        node.setPointerCapture(e.pointerId);
+      });
+      node.addEventListener('pointermove', e => {
+        if (!isDragging) return;
+        node.style.left = `${Math.max(0, initL + (e.clientX - startX))}px`;
+        node.style.top = `${Math.max(0, initT + (e.clientY - startY))}px`;
+        drawPatchCords();
+      });
+      node.addEventListener('pointerup', () => isDragging = false);
+    });
+
+    // Socket Patching Interaction
+    let selectedFromSocket = null;
+    document.querySelectorAll('.node-jack').forEach(jack => {
+      jack.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        const sId = jack.dataset.socket;
+        if (!selectedFromSocket) {
+          if (sId.includes('-out')) {
+            selectedFromSocket = sId;
+            jack.classList.add('connected');
+          }
+        } else {
+          if (sId.includes('-in') || sId.includes('dac-')) {
+            patchConnections = patchConnections.filter(c => c.from !== selectedFromSocket);
+            patchConnections.push({ from: selectedFromSocket, to: sId, color: '#3fb950' });
+            drawPatchCords();
+            rebuildAudioRouting();
+          }
+          document.querySelectorAll('.node-jack').forEach(j => j.classList.remove('connected'));
+          selectedFromSocket = null;
+        }
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 3. C++ Code Generator
+    // -------------------------------------------------------------------------
+    function updateCodeView() {
+      const box = document.getElementById('codeBox');
+      let cordsCode = '';
+      patchConnections.forEach((c, i) => {
+        let srcObj = c.from.replace('-out', '1');
+        let dstObj = c.to.replace('-in', '1').replace('dac-l', 'i2s_out').replace('dac-r', 'i2s_out');
+        let dstPort = c.to === 'dac-r' ? '1' : '0';
+        cordsCode += `AudioConnection patchCord${i + 1}(${srcObj}, 0, ${dstObj}, ${dstPort});\n`;
+      });
+
+      box.innerText = `// Generated for ESP32-P4 Dual-Core RISC-V Architecture\n#include "Audio.h"\n\n// Modular Nodes Definition\nAudioSynthWaveform       osc1;\nAudioFilterBuchlaLpg     lpg1;       // Vactrol Non-Linear Lowpass Gate\nAudioFilterMoogLadder    moog1;      // 24dB 4-Pole Saturation Ladder\nAudioEffectDelay         delay1;\nAudioOutputI2S           i2s_out;\n\n// Active Canvas Patch Cords (Zero-Copy DMA Routing)\n${cordsCode}\nextern "C" void app_main() {\n    AudioMemory(48);\n    i2s_out.begin();\n}`;
     }
 
     // -------------------------------------------------------------------------
-    // 5. Diagnostics & FFT1024 / Tuner
+    // 4. Diagnostics & Keyboard
     // -------------------------------------------------------------------------
     const fftCanvas = document.getElementById('fftCanvas');
     const fftCtx = fftCanvas.getContext('2d');
@@ -580,27 +375,23 @@
     const timeBuffer = new Float32Array(1024);
     const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-    function updateDiagnostics() {
-      fftCanvas.width = fftCanvas.clientWidth;
-      fftCanvas.height = fftCanvas.clientHeight;
-      fftCtx.fillStyle = '#070a0f';
-      fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
+    function updateScope() {
+      fftCanvas.width = fftCanvas.clientWidth; fftCanvas.height = fftCanvas.clientHeight;
+      fftCtx.fillStyle = '#05080d'; fftCtx.fillRect(0, 0, fftCanvas.width, fftCanvas.height);
 
-      if (analyserNode) {
-        analyserNode.getByteFrequencyData(freqData);
-        const barWidth = (fftCanvas.width / 128);
+      if (analyser) {
+        analyser.getByteFrequencyData(freqData);
+        const barW = fftCanvas.width / 128;
         for (let i = 0; i < 128; i++) {
-          const barHeight = (freqData[i] / 255) * fftCanvas.height;
+          const barH = (freqData[i] / 255) * fftCanvas.height;
           fftCtx.fillStyle = '#58a6ff';
-          fftCtx.fillRect(i * barWidth, fftCanvas.height - barHeight, barWidth - 1, barHeight);
+          fftCtx.fillRect(i * barW, fftCanvas.height - barH, barW - 1, barH);
         }
 
-        analyserNode.getFloatTimeDomainData(timeBuffer);
+        analyser.getFloatTimeDomainData(timeBuffer);
         let rms = 0;
         for (let i = 0; i < 1024; i++) rms += timeBuffer[i] * timeBuffer[i];
         rms = Math.sqrt(rms / 1024);
-        document.getElementById('rmsFill').style.height = `${Math.min(100, rms * 300)}%`;
-
         if (rms > 0.02) {
           let bestOffset = -1, bestCorr = 0;
           for (let offset = 20; offset < 500; offset++) {
@@ -610,84 +401,25 @@
             if (corr > bestCorr && corr > 0.85) { bestCorr = corr; bestOffset = offset; }
           }
           if (bestOffset > 0) {
-            const fundFreq = actx.sampleRate / bestOffset;
-            const midiNum = Math.round(12 * (Math.log2(fundFreq / 440)) + 69);
-            const noteName = noteStrings[((midiNum % 12) + 12) % 12];
-            const oct = Math.floor(midiNum / 12) - 1;
-            document.getElementById('tunerNote').innerText = `${noteName}${oct}`;
-            document.getElementById('tunerHz').innerText = `${fundFreq.toFixed(1)} Hz`;
+            const fundHz = actx.sampleRate / bestOffset;
+            const midi = Math.round(12 * (Math.log2(fundHz / 440)) + 69);
+            document.getElementById('tunerNote').innerText = `${noteStrings[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+            document.getElementById('tunerHz').innerText = `${fundHz.toFixed(1)} Hz`;
           }
         }
       }
-      requestAnimationFrame(updateDiagnostics);
+      requestAnimationFrame(updateScope);
     }
 
-    // -------------------------------------------------------------------------
-    // 6. Live ESP-IDF C++ Code Generator for Teensy Audio Port
-    // -------------------------------------------------------------------------
-    function updateCodeGenerator() {
-      const box = document.getElementById('codeBox');
-      const p = activePatch;
-      const ch1 = document.getElementById('mixCh1') ? (parseInt(document.getElementById('mixCh1').value) / 100).toFixed(2) : '0.85';
-      const att = document.getElementById('envA') ? document.getElementById('envA').value : '15';
-      const dec = document.getElementById('envD') ? document.getElementById('envD').value : '120';
-      const rel = document.getElementById('envR') ? document.getElementById('envR').value : '250';
-
-      box.innerText = `// Generated for ESP32-P4 Teensy Audio Architecture (kniajevich/p4-teensy-audio)
-#include "Audio.h"
-
-// GUI Tool Graph Instantiation
-AudioSynthWaveform           osc1;            // Waveform: ${p.wave}
-AudioEffectEnvelope          envelope1;       // Attack: ${att}ms, Decay: ${dec}ms, Release: ${rel}ms
-AudioFilterStateVariable     filter1;         // ${p.fType.toUpperCase()} @ ${p.cutoff}Hz, Q=${p.q}
-AudioFilterBiquad            eqBiquad;        // 4-Stage Parametric Cascaded EQ
-AudioEffectWaveshaper        waveshaper1;     // Overdrive Active: ${fxState.drive ? 'YES' : 'NO'}
-AudioEffectDelay             delay1;          // Stereo Tape Delay: ${document.getElementById('delayTime').value}ms
-AudioMixer4                  mixer1;          // Master 4-Channel Summer
-AudioOutputI2S               i2s_out;         // ESP32-P4 8-Channel TDM Driver
-
-// Patch Cords (Zero-Copy Block Routing)
-AudioConnection patchCord1(osc1, 0, envelope1, 0);
-AudioConnection patchCord2(envelope1, 0, filter1, 0);
-AudioConnection patchCord3(filter1, ${p.fType === 'lowpass' ? 0 : (p.fType === 'bandpass' ? 1 : 2)}, eqBiquad, 0);
-AudioConnection patchCord4(eqBiquad, 0, waveshaper1, 0);
-AudioConnection patchCord5(waveshaper1, 0, delay1, 0);
-AudioConnection patchCord6(waveshaper1, 0, mixer1, 0);
-AudioConnection patchCord7(delay1, 0, mixer1, 1);
-AudioConnection patchCord8(mixer1, 0, i2s_out, 0);
-AudioConnection patchCord9(mixer1, 0, i2s_out, 1);
-
-extern "C" void app_main() {
-    AudioMemory(64); // Allocates zero-copy buffer pool in SRAM
-    mixer1.gain(0, ${ch1}f);
-    mixer1.gain(1, 0.40f);
-    filter1.frequency(${p.cutoff});
-    filter1.resonance(${p.q});
-    envelope1.attack(${att});
-    envelope1.decay(${dec});
-    envelope1.release(${rel});
-    i2s_out.begin();
-}`;
-    }
-
-    // -------------------------------------------------------------------------
-    // 7. Piano Key Bed Setup
-    // -------------------------------------------------------------------------
     const kb = document.getElementById('keyboard');
-    const keyDefs = [
-      { n: 48, b: false }, { n: 49, b: true, left: 7.2 },
-      { n: 50, b: false }, { n: 51, b: true, left: 17.5 },
-      { n: 52, b: false },
-      { n: 53, b: false }, { n: 54, b: true, left: 38.0 },
-      { n: 55, b: false }, { n: 56, b: true, left: 48.2 },
-      { n: 57, b: false }, { n: 58, b: true, left: 58.5 },
-      { n: 59, b: false },
-      { n: 60, b: false }, { n: 61, b: true, left: 78.8 },
-      { n: 62, b: false }, { n: 63, b: true, left: 89.0 },
-      { n: 64, b: false }
+    const keys = [
+      { n: 48, b: false }, { n: 49, b: true, left: 7.2 }, { n: 50, b: false }, { n: 51, b: true, left: 17.5 },
+      { n: 52, b: false }, { n: 53, b: false }, { n: 54, b: true, left: 38.0 }, { n: 55, b: false },
+      { n: 56, b: true, left: 48.2 }, { n: 57, b: false }, { n: 58, b: true, left: 58.5 }, { n: 59, b: false },
+      { n: 60, b: false }, { n: 61, b: true, left: 78.8 }, { n: 62, b: false }, { n: 63, b: true, left: 89.0 }, { n: 64, b: false }
     ];
 
-    keyDefs.forEach(k => {
+    keys.forEach(k => {
       const el = document.createElement('div');
       el.className = k.b ? 'black-key' : 'white-key';
       if (k.b) el.style.left = `${k.left}%`;
@@ -697,8 +429,7 @@ extern "C" void app_main() {
       kb.appendChild(el);
     });
 
-    renderPresets();
-    setTimeout(() => { updateDiagnostics(); updateCodeGenerator(); }, 60);
+    setTimeout(() => { drawPatchCords(); updateScope(); updateCodeView(); }, 80);
   </script>
 </body>
 </html>
