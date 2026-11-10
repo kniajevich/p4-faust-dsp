@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ESP32-P4 Teensy Audio & Faust Studio Pro</title>
+  <title>ESP32-P4 Teensy Audio Studio Pro v1.0</title>
   <style>
     :root {
       --bg: #070a0f; --card: #0e141f; --card-border: #1a2333;
@@ -20,7 +20,6 @@
     .repo-banner { background: linear-gradient(90deg, #101622 0%, #172133 100%); border: 1px solid #388bfd55; border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
     .repo-banner a { color: #58a6ff; text-decoration: none; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
     
-    /* View Switcher */
     .view-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
     .view-btn { background: #0e141f; border: 1px solid var(--card-border); color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 7px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
     .view-btn.active { background: #21262d; border-color: var(--accent); color: #fff; box-shadow: 0 0 6px rgba(88,166,255,0.3); }
@@ -44,6 +43,12 @@
     .preset-title { font-size: 11px; font-weight: 700; color: #fff; }
     .preset-sub { font-size: 8px; color: var(--text-muted); }
 
+    /* Drop Zone */
+    .drop-zone { border: 2px dashed #26354a; border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; background: #070b12; transition: 0.2s; }
+    .drop-zone:hover { border-color: #58a6ff; background: #0e1524; }
+    .drop-zone span { display: block; font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .drop-zone small { font-size: 10px; color: var(--text-muted); }
+
     /* Modular Canvas */
     .canvas-wrap { position: relative; width: 100%; height: 280px; background: #04060a; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; touch-action: none; }
     #patchSvg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -53,7 +58,7 @@
     .node-jack.connected { background: #58a6ff; }
     .jack-row { display: flex; justify-content: space-between; align-items: center; font-size: 9px; font-family: monospace; color: var(--text-muted); margin: 3px 0; }
 
-    /* FX Pedals & Controls */
+    /* FX Pedals */
     .pedal { background: #0a0e16; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
     .pedal-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 700; }
     .pedal-switch { width: 28px; height: 15px; background: #263040; border-radius: 8px; position: relative; cursor: pointer; }
@@ -72,7 +77,7 @@
     .btn-drum small { font-size: 8px; color: var(--text-muted); }
     .mixer-channel { background: #0a0e16; border: 1px solid var(--card-border); border-radius: 5px; padding: 6px; text-align: center; display: flex; flex-direction: column; gap: 3px; }
 
-    /* Diagnostics */
+    /* Meters */
     .meters-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
     @media (max-width: 600px) { .meters-grid { grid-template-columns: 1fr; } }
     .scope-box { height: 85px; background: #04060a; border-radius: 6px; border: 1px solid var(--card-border); overflow: hidden; }
@@ -98,15 +103,15 @@
 <body>
   <div class="container">
     <header>
-      <h1>ESP32-P4 Studio Pro <span class="badge">v0.9.5</span></h1>
+      <h1>ESP32-P4 Studio Pro <span class="badge">v1.0.0</span></h1>
       <div style="font-size: 11px; font-family: monospace; color: var(--text-muted);">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>30+ DSP Modules Live
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2ea043; margin-right:4px;"></span>100% PJRC Portfolio
       </div>
     </header>
 
     <div class="repo-banner">
       <div>
-        <span style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); display: block;">Embedded C++ Ports:</span>
+        <span style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); display: block;">Hardware C++ Ports:</span>
         <a href="https://github.com/kniajevich/p4-teensy-audio" target="_blank">
           <svg height="14" viewBox="0 0 16 16" width="14" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
           kniajevich/p4-teensy-audio & p4-faust-dsp
@@ -114,17 +119,17 @@
       </div>
     </div>
 
-    <!-- Main Navigation Tabs -->
+    <!-- Tab Switcher -->
     <div class="view-nav">
-      <button class="view-btn active" onclick="switchView('rack')">🎛️ Teensy Rack & Presets</button>
-      <button class="view-btn" onclick="switchView('modular')">🔌 Eurorack Patchbay</button>
-      <button class="view-btn" onclick="switchView('drums')">🥁 808 Drums & Mixer</button>
-      <button class="view-btn" onclick="switchView('code')">💻 Live C++ Code</button>
+      <button class="view-btn active" onclick="switchView('rack', event)">🎛️ Teensy Rack</button>
+      <button class="view-btn" onclick="switchView('sdwav', event)">📂 SDMMC WAV Player</button>
+      <button class="view-btn" onclick="switchView('modular', event)">🔌 Modular Patchbay</button>
+      <button class="view-btn" onclick="switchView('drums', event)">🥁 Drums & Mixer</button>
+      <button class="view-btn" onclick="switchView('code', event)">💻 Live C++ Code</button>
     </div>
 
-    <!-- PANEL 1: Teensy Modular Rack & Presets -->
+    <!-- 1. Teensy Rack & Presets -->
     <div class="view-panel active" id="panel-rack">
-      <!-- Preset Browser -->
       <div class="card">
         <h2>Master Preset Library <span id="activePatchName" style="color: #58a6ff;">Acid Bass 303</span></h2>
         <div class="tabs-bar">
@@ -137,7 +142,6 @@
         <div class="presets-grid" id="presetContainer"></div>
       </div>
 
-      <!-- Complete FX Rack -->
       <div class="card">
         <h2>Teensy Audio FX Rack (AudioEffect...)</h2>
         <div class="grid-3">
@@ -162,32 +166,47 @@
             <div class="ctrl-row"><span>Room</span><input type="range" id="verbRoom" min="1" max="100" value="70" oninput="updateFX()" /></div>
           </div>
           <div class="pedal">
-            <div class="pedal-header"><span>PAN (AudioEffectPan)</span><span id="panVal" style="font-size:9px;">0.0</span></div>
-            <div class="ctrl-row"><span>L/R</span><input type="range" id="slPan" min="-100" max="100" value="0" oninput="updatePan()" /></div>
+            <div class="pedal-header"><span>DIGITAL COMBINE (Logic)</span><div class="pedal-switch active" id="swCombine" onclick="toggleFX('combine')"></div></div>
+            <div class="ctrl-row"><span>Mode</span><select id="selCombine" onchange="updateFX()" style="background:#070a0f; color:#fff; border:1px solid #30363d; font-size:9px; border-radius:3px;"><option value="xor">XOR Glitch</option><option value="and">AND Ring</option><option value="or">OR Fold</option><option value="mod">Modulo</option></select></div>
           </div>
         </div>
       </div>
 
-      <!-- 4-Band Biquad EQ & Envelope ADSR -->
       <div class="grid-2">
         <div class="card">
-          <h2>AudioFilterBiquad (4-Band EQ)</h2>
+          <h2>AudioFilterLadder & Biquad EQ</h2>
+          <div class="ctrl-row"><span>Moog Ladder Cutoff</span><input type="range" id="moogCutoff" min="50" max="12000" value="1400" oninput="updateMoog()" /></div>
+          <div class="ctrl-row"><span>Moog Resonance</span><input type="range" id="moogRes" min="0" max="100" value="50" oninput="updateMoog()" /></div>
           <div class="ctrl-row"><span>Low 100Hz</span><input type="range" id="eqLow" min="-12" max="12" value="2" oninput="updateEQ()" /></div>
-          <div class="ctrl-row"><span>Mid 800Hz</span><input type="range" id="eqMid1" min="-12" max="12" value="0" oninput="updateEQ()" /></div>
-          <div class="ctrl-row"><span>Mid 2.5kHz</span><input type="range" id="eqMid2" min="-12" max="12" value="3" oninput="updateEQ()" /></div>
           <div class="ctrl-row"><span>High 8kHz</span><input type="range" id="eqHigh" min="-12" max="12" value="1" oninput="updateEQ()" /></div>
         </div>
         <div class="card">
           <h2>AudioEffectEnvelope (ADSR)</h2>
-          <div class="ctrl-row"><span>Attack (ms)</span><input type="range" id="envA" min="1" max="500" value="15" oninput="updateADSR()" /></div>
-          <div class="ctrl-row"><span>Decay (ms)</span><input type="range" id="envD" min="10" max="800" value="120" oninput="updateADSR()" /></div>
-          <div class="ctrl-row"><span>Sustain (%)</span><input type="range" id="envS" min="0" max="100" value="70" oninput="updateADSR()" /></div>
-          <div class="ctrl-row"><span>Release (ms)</span><input type="range" id="envR" min="20" max="1500" value="250" oninput="updateADSR()" /></div>
+          <div class="ctrl-row"><span>Attack (ms)</span><input type="range" id="envA" min="1" max="500" value="15" oninput="updateCodeGenerator()" /></div>
+          <div class="ctrl-row"><span>Decay (ms)</span><input type="range" id="envD" min="10" max="800" value="120" oninput="updateCodeGenerator()" /></div>
+          <div class="ctrl-row"><span>Sustain (%)</span><input type="range" id="envS" min="0" max="100" value="70" oninput="updateCodeGenerator()" /></div>
+          <div class="ctrl-row"><span>Release (ms)</span><input type="range" id="envR" min="20" max="1500" value="250" oninput="updateCodeGenerator()" /></div>
         </div>
       </div>
     </div>
 
-    <!-- PANEL 2: Eurorack Modular Patchbay (Canvas & Cables) -->
+    <!-- 2. AudioPlaySdWav Simulator -->
+    <div class="view-panel" id="panel-sdwav">
+      <div class="card">
+        <h2>AudioPlaySdWav (SDMMC FATFS Audio Streamer)</h2>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="audio/wav,audio/mp3" style="display:none;" onchange="handleFileSelect(event)" />
+          <span>📂 Drop WAV Sample or Click to Browse</span>
+          <small id="wavStatus">Simulates streaming PCM blocks from /sdcard/track.wav directly through the Teensy DSP rack</small>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:6px;">
+          <button onclick="playSample()" style="background:#238636; color:#fff; border:none; padding:6px 14px; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">▶ Play Loaded Sample</button>
+          <button onclick="stopSample()" style="background:#da3633; color:#fff; border:none; padding:6px 14px; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">⏹ Stop</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Modular Patchbay Canvas -->
     <div class="view-panel" id="panel-modular">
       <div class="card">
         <h2>Interactive Eurorack Patch Bay <button onclick="resetDefaultCords()" style="background:#1c2738; color:#fff; border:1px solid #30363d; font-size:10px; padding:3px 8px; border-radius:4px; cursor:pointer;">Reset Cords</button></h2>
@@ -221,7 +240,7 @@
       </div>
     </div>
 
-    <!-- PANEL 3: 808 Drums & Mixer -->
+    <!-- 4. Drums & Mixer -->
     <div class="view-panel" id="panel-drums">
       <div class="card">
         <h2>AudioSynthSimpleDrum (808 Rhythm Section)</h2>
@@ -239,13 +258,13 @@
         <div class="grid-4">
           <div class="mixer-channel"><span style="font-size:9px; font-weight:700;">CH1: SYNTH</span><input type="range" id="mixCh1" min="0" max="100" value="85" oninput="updateCodeGenerator()" /></div>
           <div class="mixer-channel"><span style="font-size:9px; font-weight:700;">CH2: SUB</span><input type="range" id="mixCh2" min="0" max="100" value="40" oninput="updateCodeGenerator()" /></div>
-          <div class="mixer-channel"><span style="font-size:9px; font-weight:700;">CH3: NOISE</span><input type="range" id="mixCh3" min="0" max="100" value="15" oninput="updateCodeGenerator()" /></div>
+          <div class="mixer-channel"><span style="font-size:9px; font-weight:700;">CH3: WAV/SD</span><input type="range" id="mixCh3" min="0" max="100" value="60" oninput="updateCodeGenerator()" /></div>
           <div class="mixer-channel"><span style="font-size:9px; font-weight:700;">CH4: DRUMS</span><input type="range" id="mixCh4" min="0" max="100" value="90" oninput="updateCodeGenerator()" /></div>
         </div>
       </div>
     </div>
 
-    <!-- PANEL 4: Live C++ Code View -->
+    <!-- 5. Live C++ Code View -->
     <div class="view-panel" id="panel-code">
       <div class="card">
         <h2>Live Generated C++ ESP-IDF Code</h2>
@@ -253,7 +272,7 @@
       </div>
     </div>
 
-    <!-- Global Persistent Analysis & Piano Key Bed -->
+    <!-- Global Persistent Analysis & Piano -->
     <div class="card">
       <h2>AudioAnalyzeFFT1024, NoteFreq & Key Bed</h2>
       <div class="meters-grid">
@@ -270,17 +289,14 @@
   </div>
 
   <script>
-    function switchView(tab) {
-      document.querySelectorAll('.view-btn').forEach((b, i) => b.classList.remove('active'));
+    function switchView(tab, e) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-      event.target.classList.add('active');
+      if (e && e.target) e.target.classList.add('active');
       document.getElementById(`panel-${tab}`).classList.add('active');
       if (tab === 'modular') setTimeout(drawPatchCords, 50);
     }
 
-    // -------------------------------------------------------------------------
-    // 1. Presets Library (25 Master Presets)
-    // -------------------------------------------------------------------------
     const PRESET_LIBRARY = [
       { id: 'b1', cat: 'bass', name: 'Acid Bass 303', sub: 'Saw + Resonant LP + Overdrive', wave: 'sawtooth', fType: 'lowpass', cutoff: 950, q: 14, drive: true, driveVal: 24, delay: false, crush: false, a: 5, d: 100, s: 60, r: 120 },
       { id: 'b2', cat: 'bass', name: 'Cyberpunk Reese', sub: 'Pulse PWM + Heavy Drive', wave: 'square', fType: 'lowpass', cutoff: 1400, q: 6, drive: true, driveVal: 32, delay: false, crush: false, a: 20, d: 200, s: 80, r: 350 },
@@ -335,41 +351,32 @@
       document.getElementById('activePatchName').innerText = p.name;
       renderPresets();
       initDSP();
-
       mainFilter.type = p.fType;
       mainFilter.frequency.setTargetAtTime(p.cutoff, actx.currentTime, 0.02);
       mainFilter.Q.setTargetAtTime(p.q, actx.currentTime, 0.02);
-
       fxState.drive = p.drive;
       document.getElementById('swDrive').classList.toggle('active', p.drive);
       document.getElementById('driveVal').value = p.driveVal;
-
       fxState.delay = p.delay;
       document.getElementById('swDelay').classList.toggle('active', p.delay);
       if (p.delayTime) document.getElementById('delayTime').value = p.delayTime;
-
       fxState.crush = p.crush;
       document.getElementById('swCrush').classList.toggle('active', p.crush);
       if (p.crushBits) document.getElementById('crushBits').value = p.crushBits;
-
       document.getElementById('envA').value = p.a;
       document.getElementById('envD').value = p.d;
       document.getElementById('envS').value = p.s;
       document.getElementById('envR').value = p.r;
-
       updateFX();
       updateCodeGenerator();
     }
 
-    // -------------------------------------------------------------------------
-    // 2. Audio Engine Setup
-    // -------------------------------------------------------------------------
-    let actx = null, masterOut = null, mainFilter = null;
-    let delayUnit = null, delayGain = null, shaperNode = null, pannerNode = null;
-    let analyserNode = null;
-    let eqL = null, eqM1 = null, eqM2 = null, eqH = null;
+    let actx = null, masterOut = null, mainFilter = null, moogLadderNode = null;
+    let delayUnit = null, delayGain = null, shaperNode = null, analyserNode = null;
+    let eqL = null, eqH = null;
+    let loadedSampleBuffer = null, currentSampleSource = null;
     const activeVoices = new Map();
-    const fxState = { crush: false, drive: true, delay: true, verb: true, chorus: true };
+    const fxState = { crush: false, drive: true, delay: true, verb: true, chorus: true, combine: false };
 
     function makeDistortion(k = 20) {
       const n = 44100, c = new Float32Array(n), deg = Math.PI / 180;
@@ -381,57 +388,31 @@
     }
 
     function initDSP() {
-      if (actx) {
-        if (actx.state === 'suspended') actx.resume();
-        return;
-      }
+      if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
       const AC = window.AudioContext || window.webkitAudioContext;
       actx = new AC();
+      analyserNode = actx.createAnalyser(); analyserNode.fftSize = 1024;
+      masterOut = actx.createGain(); masterOut.gain.value = 0.85;
 
-      analyserNode = actx.createAnalyser();
-      analyserNode.fftSize = 1024;
+      mainFilter = actx.createBiquadFilter(); mainFilter.type = 'lowpass';
+      mainFilter.frequency.value = 950; mainFilter.Q.value = 14;
 
-      masterOut = actx.createGain();
-      masterOut.gain.value = 0.85;
-
-      mainFilter = actx.createBiquadFilter();
-      mainFilter.type = 'lowpass';
-      mainFilter.frequency.value = 950;
-      mainFilter.Q.value = 14;
+      moogLadderNode = actx.createBiquadFilter(); moogLadderNode.type = 'lowpass';
+      moogLadderNode.frequency.value = 1400; moogLadderNode.Q.value = 8;
 
       eqL = actx.createBiquadFilter(); eqL.type = 'lowshelf'; eqL.frequency.value = 100; eqL.gain.value = 2;
-      eqM1 = actx.createBiquadFilter(); eqM1.type = 'peaking'; eqM1.frequency.value = 800; eqM1.Q.value = 1.0; eqM1.gain.value = 0;
-      eqM2 = actx.createBiquadFilter(); eqM2.type = 'peaking'; eqM2.frequency.value = 2500; eqM2.Q.value = 1.2; eqM2.gain.value = 3;
       eqH = actx.createBiquadFilter(); eqH.type = 'highshelf'; eqH.frequency.value = 8000; eqH.gain.value = 1;
 
-      shaperNode = actx.createWaveShaper();
-      shaperNode.curve = makeDistortion(14);
+      shaperNode = actx.createWaveShaper(); shaperNode.curve = makeDistortion(14);
 
-      delayUnit = actx.createDelay(1.0);
-      delayUnit.delayTime.value = 0.26;
-      delayGain = actx.createGain();
-      delayGain.gain.value = 0.42;
-      delayUnit.connect(delayGain);
-      delayGain.connect(delayUnit);
+      delayUnit = actx.createDelay(1.0); delayUnit.delayTime.value = 0.26;
+      delayGain = actx.createGain(); delayGain.gain.value = 0.42;
+      delayUnit.connect(delayGain); delayGain.connect(delayUnit);
 
-      pannerNode = actx.createStereoPanner ? actx.createStereoPanner() : null;
-
-      mainFilter.connect(eqL);
-      eqL.connect(eqM1); eqM1.connect(eqM2); eqM2.connect(eqH);
-      eqH.connect(shaperNode);
-      shaperNode.connect(delayUnit);
-
-      if (pannerNode) {
-        shaperNode.connect(pannerNode);
-        delayGain.connect(pannerNode);
-        pannerNode.connect(masterOut);
-      } else {
-        shaperNode.connect(masterOut);
-        delayGain.connect(masterOut);
-      }
-
-      masterOut.connect(analyserNode);
-      analyserNode.connect(actx.destination);
+      mainFilter.connect(moogLadderNode);
+      moogLadderNode.connect(eqL); eqL.connect(eqH); eqH.connect(shaperNode);
+      shaperNode.connect(delayUnit); shaperNode.connect(masterOut); delayGain.connect(masterOut);
+      masterOut.connect(analyserNode); analyserNode.connect(actx.destination);
       updateCodeGenerator();
     }
 
@@ -444,14 +425,18 @@
 
     function updateFX() {
       initDSP();
-      if (shaperNode) {
-        shaperNode.curve = fxState.drive ? makeDistortion(parseInt(document.getElementById('driveVal').value)) : null;
-      }
-      if (delayGain) {
-        delayGain.gain.setTargetAtTime(fxState.delay ? 0.42 : 0.0, actx.currentTime, 0.02);
-        const dt = parseInt(document.getElementById('delayTime').value) / 1000.0;
-        delayUnit.delayTime.setTargetAtTime(dt, actx.currentTime, 0.02);
-      }
+      if (shaperNode) shaperNode.curve = fxState.drive ? makeDistortion(parseInt(document.getElementById('driveVal').value)) : null;
+      if (delayGain) delayGain.gain.setTargetAtTime(fxState.delay ? 0.42 : 0.0, actx.currentTime, 0.02);
+      updateCodeGenerator();
+    }
+
+    function updateMoog() {
+      initDSP();
+      if (!moogLadderNode) return;
+      const f = parseFloat(document.getElementById('moogCutoff').value);
+      const q = parseFloat(document.getElementById('moogRes').value) / 100.0 * 20.0;
+      moogLadderNode.frequency.setTargetAtTime(f, actx.currentTime, 0.02);
+      moogLadderNode.Q.setTargetAtTime(q, actx.currentTime, 0.02);
       updateCodeGenerator();
     }
 
@@ -459,24 +444,38 @@
       initDSP();
       if (!eqL) return;
       eqL.gain.setTargetAtTime(parseFloat(document.getElementById('eqLow').value), actx.currentTime, 0.02);
-      eqM1.gain.setTargetAtTime(parseFloat(document.getElementById('eqMid1').value), actx.currentTime, 0.02);
-      eqM2.gain.setTargetAtTime(parseFloat(document.getElementById('eqMid2').value), actx.currentTime, 0.02);
       eqH.gain.setTargetAtTime(parseFloat(document.getElementById('eqHigh').value), actx.currentTime, 0.02);
       updateCodeGenerator();
     }
 
-    function updatePan() {
+    function handleFileSelect(e) {
       initDSP();
-      const v = parseInt(document.getElementById('slPan').value) / 100.0;
-      document.getElementById('panVal').innerText = v.toFixed(2);
-      if (pannerNode) pannerNode.pan.setTargetAtTime(v, actx.currentTime, 0.02);
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        actx.decodeAudioData(evt.target.result, function(buffer) {
+          loadedSampleBuffer = buffer;
+          document.getElementById('wavStatus').innerText = `Loaded: ${file.name} (${buffer.duration.toFixed(2)}s, ${buffer.numberOfChannels}ch, ${buffer.sampleRate}Hz)`;
+        });
+      };
+      reader.readAsArrayBuffer(file);
     }
 
-    function updateADSR() { updateCodeGenerator(); }
+    function playSample() {
+      initDSP();
+      if (!loadedSampleBuffer) { alert('Select or drop a WAV sample file first.'); return; }
+      stopSample();
+      currentSampleSource = actx.createBufferSource();
+      currentSampleSource.buffer = loadedSampleBuffer;
+      currentSampleSource.connect(mainFilter);
+      currentSampleSource.start(0);
+    }
 
-    // -------------------------------------------------------------------------
-    // 3. Polyphonic Keyboard Playback
-    // -------------------------------------------------------------------------
+    function stopSample() {
+      if (currentSampleSource) { try { currentSampleSource.stop(); currentSampleSource.disconnect(); } catch(e) {} currentSampleSource = null; }
+    }
+
     function playNote(midi) {
       initDSP();
       if (activeVoices.has(midi)) stopNote(midi);
@@ -496,27 +495,21 @@
         const d = buf.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         osc = actx.createBufferSource(); osc.buffer = buf;
-        vGain.gain.setValueAtTime(0.8, now);
-        vGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        vGain.gain.setValueAtTime(0.8, now); vGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
       } else if (wave === 'noise') {
         const buf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
         const d = buf.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         osc = actx.createBufferSource(); osc.buffer = buf; osc.loop = true;
-        vGain.gain.setValueAtTime(0.001, now);
-        vGain.gain.linearRampToValueAtTime(0.4, now + att);
+        vGain.gain.setValueAtTime(0.001, now); vGain.gain.linearRampToValueAtTime(0.4, now + att);
         vGain.gain.exponentialRampToValueAtTime(sus + 0.001, now + att + dec);
       } else {
-        osc = actx.createOscillator(); osc.type = wave;
-        osc.frequency.setValueAtTime(freq, now);
-        vGain.gain.setValueAtTime(0.001, now);
-        vGain.gain.linearRampToValueAtTime(0.35, now + att);
+        osc = actx.createOscillator(); osc.type = wave; osc.frequency.setValueAtTime(freq, now);
+        vGain.gain.setValueAtTime(0.001, now); vGain.gain.linearRampToValueAtTime(0.35, now + att);
         vGain.gain.exponentialRampToValueAtTime(sus + 0.001, now + att + dec);
       }
 
-      osc.connect(vGain);
-      vGain.connect(mainFilter);
-      osc.start(now);
+      osc.connect(vGain); vGain.connect(mainFilter); osc.start(now);
       activeVoices.set(midi, { osc, vGain });
     }
 
@@ -525,8 +518,7 @@
       const { osc, vGain } = activeVoices.get(midi);
       const now = actx.currentTime;
       const rel = parseInt(document.getElementById('envR').value) / 1000.0;
-      vGain.gain.cancelScheduledValues(now);
-      vGain.gain.setValueAtTime(vGain.gain.value, now);
+      vGain.gain.cancelScheduledValues(now); vGain.gain.setValueAtTime(vGain.gain.value, now);
       vGain.gain.exponentialRampToValueAtTime(0.0001, now + rel);
       setTimeout(() => {
         try { osc.stop(); osc.disconnect(); vGain.disconnect(); } catch(e) {}
@@ -534,9 +526,6 @@
       activeVoices.delete(midi);
     }
 
-    // -------------------------------------------------------------------------
-    // 4. 808 Drums
-    // -------------------------------------------------------------------------
     function triggerDrum(t) {
       initDSP();
       const now = actx.currentTime;
@@ -575,9 +564,6 @@
       }
     }
 
-    // -------------------------------------------------------------------------
-    // 5. Modular Patch Bay (Canvas & Cables)
-    // -------------------------------------------------------------------------
     let patchConnections = [
       { from: 'osc-out', to: 'lpg-in', color: '#58a6ff' },
       { from: 'lpg-out', to: 'delay-in', color: '#e3b341' },
@@ -598,10 +584,8 @@
       if (!svg) return;
       svg.innerHTML = '';
       patchConnections.forEach(c => {
-        const p1 = getSocketPos(c.from);
-        const p2 = getSocketPos(c.to);
-        const dx = (p2.x - p1.x) * 0.5;
-        const dy = Math.abs(p2.y - p1.y) * 0.5 + 30;
+        const p1 = getSocketPos(c.from), p2 = getSocketPos(c.to);
+        const dx = (p2.x - p1.x) * 0.5, dy = Math.abs(p2.y - p1.y) * 0.5 + 30;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M ${p1.x} ${p1.y} C ${p1.x + dx} ${p1.y + dy}, ${p2.x - dx} ${p2.y + dy}, ${p2.x} ${p2.y}`);
         path.setAttribute('stroke', c.color || '#58a6ff');
@@ -658,9 +642,6 @@
       });
     });
 
-    // -------------------------------------------------------------------------
-    // 6. Diagnostics & C++ Generator
-    // -------------------------------------------------------------------------
     const fftCanvas = document.getElementById('fftCanvas');
     const fftCtx = fftCanvas.getContext('2d');
     const freqData = new Uint8Array(512);
@@ -711,6 +692,7 @@
       const att = document.getElementById('envA') ? document.getElementById('envA').value : '15';
       const dec = document.getElementById('envD') ? document.getElementById('envD').value : '120';
       const rel = document.getElementById('envR') ? document.getElementById('envR').value : '250';
+      const moogCut = document.getElementById('moogCutoff') ? document.getElementById('moogCutoff').value : '1400';
 
       let cords = '';
       patchConnections.forEach((c, i) => {
@@ -719,18 +701,16 @@
         cords += `AudioConnection patchCord${i + 1}(${s}, 0, ${d}, ${c.to === 'dac-r' ? 1 : 0});\n`;
       });
 
-      box.innerText = `// Generated for ESP32-P4 Teensy Audio Architecture (kniajevich/p4-teensy-audio)\n#include "Audio.h"\n\nAudioSynthWaveform           osc1;            // Waveform: ${p.wave}\nAudioEffectEnvelope          envelope1;       // A:${att}ms, D:${dec}ms, R:${rel}ms\nAudioFilterStateVariable     filter1;         // ${p.fType.toUpperCase()} @ ${p.cutoff}Hz, Q=${p.q}\nAudioFilterBiquad            eqBiquad;        // 4-Stage Parametric EQ\nAudioEffectWaveshaper        waveshaper1;     // Overdrive Active: ${fxState.drive ? 'YES' : 'NO'}\nAudioEffectDelay             delay1;          // Tape Delay: ${document.getElementById('delayTime').value}ms\nAudioMixer4                  mixer1;          // 4-Channel Summer\nAudioOutputI2S               i2s_out;         // ESP32-P4 8-Channel TDM\n\n// Active AudioConnection Routing Graph:\n${cords}\nextern "C" void app_main() {\n    AudioMemory(64);\n    mixer1.gain(0, ${ch1}f);\n    filter1.frequency(${p.cutoff});\n    filter1.resonance(${p.q});\n    envelope1.attack(${att});\n    envelope1.decay(${dec});\n    envelope1.release(${rel});\n    i2s_out.begin();\n}`;
+      box.innerText = `// Complete Teensy Audio & ESP32-P4 DSP Pipeline\n#include "Audio.h"\n\nAudioPlaySdWav               wavPlayer1;      // SDMMC FATFS File Streamer\nAudioSynthWaveform           osc1;            // Waveform: ${p.wave}\nAudioEffectEnvelope          envelope1;       // A:${att}ms, D:${dec}ms, R:${rel}ms\nAudioFilterLadder            moogLadder;      // 24dB Moog Ladder @ ${moogCut}Hz\nAudioFilterStateVariable     filter1;         // ${p.fType.toUpperCase()} @ ${p.cutoff}Hz, Q=${p.q}\nAudioEffectDigitalCombine    logicCombine;    // Bitwise Logic Processor\nAudioEffectWaveshaper        waveshaper1;     // Overdrive Active: ${fxState.drive ? 'YES' : 'NO'}\nAudioEffectDelay             delay1;          // Tape Delay: ${document.getElementById('delayTime').value}ms\nAudioMixer4                  mixer1;          // 4-Channel Summer\nAudioOutputI2S               i2s_out;         // ESP32-P4 8-Channel TDM Driver\n\n// Active AudioConnection Routing Graph:\n${cords}\nextern "C" void app_main() {\n    AudioMemory(64);\n    wavPlayer1.play("/sdcard/drum_loop.wav");\n    moogLadder.frequency(${moogCut});\n    moogLadder.resonance(0.6f);\n    mixer1.gain(0, ${ch1}f);\n    filter1.frequency(${p.cutoff});\n    filter1.resonance(${p.q});\n    envelope1.attack(${att});\n    envelope1.decay(${dec});\n    envelope1.release(${rel});\n    i2s_out.begin();\n}`;
     }
 
-    // -------------------------------------------------------------------------
-    // 7. Piano Keys Setup
-    // -------------------------------------------------------------------------
     const kb = document.getElementById('keyboard');
     const keys = [
       { n: 48, b: false }, { n: 49, b: true, left: 7.2 }, { n: 50, b: false }, { n: 51, b: true, left: 17.5 },
       { n: 52, b: false }, { n: 53, b: false }, { n: 54, b: true, left: 38.0 }, { n: 55, b: false },
       { n: 56, b: true, left: 48.2 }, { n: 57, b: false }, { n: 58, b: true, left: 58.5 }, { n: 59, b: false },
-      { n: 60, b: false }, { n: 61, b: true, left: 78.8 }, { n: 62, b: false }, { n: 63, b: true, left: 89.0 }, { n: 64, b: false }
+      { n: 60, b: false }, { n: 61, b: true, left: 78.8 }, { n: 62, b: false }, { n: 63, b: true, left: 89.0 },
+      { n: 64, b: false }
     ];
 
     keys.forEach(k => {
